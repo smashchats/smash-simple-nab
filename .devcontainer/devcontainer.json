@@ -1,0 +1,21 @@
+{
+    "name": "Node.js",
+    "build": {
+        "dockerfile": "../Dockerfile"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "dbaeumer.vscode-eslint",
+                "rvest.vs-code-prettier-eslint",
+                "esbenp.prettier-vscode"
+            ]
+        }
+    },
+    "mounts": [
+        "source=/Users/valentin/Code/Smash/smash-node-lib,target=/workspaces/smash-node-lib,type=bind",
+        "source=${localWorkspaceFolderBasename}-node_modules,target=${containerWorkspaceFolder}/node_modules,type=volume",
+        "source=${localWorkspaceFolderBasename}-dist,target=${containerWorkspaceFolder}/dist,type=volume"
+    ],
+    "postCreateCommand": "echo 'source <(npm completion)' >> /home/node/.bashrc && sudo chown -R node node_modules && sudo chown -R node dist && softhsm2-util --free --init-token --label 'MyToken1' --so-pin '123456' --pin '12345'"
+}
