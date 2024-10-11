@@ -27,7 +27,7 @@ async function createUser(): Promise<SmashUser> {
         displayMenu();
     });
     user.on('message', (message) => {
-        console.log('Received message:', message);
+        console.log('Received message:', JSON.stringify(message, null, 2));
     });
     return user;
 }
@@ -38,7 +38,7 @@ async function joinNeighborhood(): Promise<void> {
             const joinInfo: SmashActionJson = JSON.parse(joinInfoStr);
             await user.join(joinInfo);
             nabDid = joinInfo.did;
-            console.log('Successfully joined the neighborhood.');
+            console.log(`Successfully queued request to join NBH ${nabDid.ik}`);
             displayMenu();
         } catch (error) {
             console.error('Error joining neighborhood:', error);

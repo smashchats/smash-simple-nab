@@ -133,9 +133,12 @@ async function start() {
         const PASS_WEIGHT = 0;
         const SMASH_WEIGHT = 100;
 
-        nab.on('message', (did: SmashDID, message: any) => {
-            console.log(`> ${did.ik} sent message:`, JSON.stringify(message));
-        });
+        // nab.on('message', (did: SmashDID, message: any) => {
+        //     console.log(
+        //         `> ${did.ik} sent message:`,
+        //         JSON.stringify(message, null, 2),
+        //     );
+        // });
 
         nab.on('join', async (did: SmashDID) => {
             console.log(`> ${did.ik} joined`);
