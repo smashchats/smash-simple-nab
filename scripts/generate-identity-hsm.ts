@@ -1,7 +1,7 @@
 #!/bin/node
 import { IECKeyPair, Identity, setEngine } from '2key-ratchet';
 import 'dotenv/config';
-import { Crypto } from 'node-webcrypto-p11';
+import { Crypto as CryptoP11 } from 'node-webcrypto-p11';
 import { SPLITTER } from 'src/crypto.js';
 
 const sleep = (ms: number) =>
@@ -15,8 +15,8 @@ async function main() {
         return process.exit(1);
     }
     const config = JSON.parse(process.env.HSM_CONFIG);
-    const crypto = new Crypto(config);
-    setEngine('@peculiar/webcrypto', crypto as unknown as globalThis.Crypto);
+    const crypto = new CryptoP11(config);
+    setEngine('@peculiar/webcrypto', crypto as unknown as Crypto);
 
     // const NODE_PATH = process.argv[0];
     // const SCRIPT_PATH = process.argv[1];

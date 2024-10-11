@@ -1,31 +1,8 @@
 #!/bin/node
 import { setEngine } from '2key-ratchet';
 import 'dotenv/config';
-import { ObjectClass, SessionObject } from 'graphene-pk11';
-import { Crypto } from 'node-webcrypto-p11';
-import { SPLITTER } from 'src/crypto.js';
-
-export const overrideCryptoObject = (crypto: Crypto) => {
-    // @ts-ignore
-    crypto.keyStorage.getItemById = (
-        classAndId: string,
-    ): SessionObject | null => {
-        const [keyClass, id] = classAndId.split(SPLITTER);
-        let key = null;
-        crypto.session.find(
-            {
-                class: parseInt(keyClass),
-                token: true,
-                id: Buffer.from(id, 'hex'),
-            },
-            (obj) => {
-                key = obj.toType<any>();
-                return false;
-            },
-        );
-        return key;
-    };
-};
+import { ObjectClass } from 'graphene-pk11';
+import { SPLITTER, createCryptoP11FromConfig } from 'src/crypto.js';
 
 async function main() {
     if (!process.env.HSM_CONFIG) {
@@ -33,43 +10,42 @@ async function main() {
         return process.exit(1);
     }
     const config = JSON.parse(process.env.HSM_CONFIG);
-    const crypto = new Crypto(config);
-    setEngine('@peculiar/webcrypto', crypto as unknown as globalThis.Crypto);
-    overrideCryptoObject(crypto);
+    const cp11 = createCryptoP11FromConfig(config);
+    setEngine('@peculiar/webcrypto', cp11 as unknown as Crypto);
 
     // const NODE_PATH = process.argv[0];
     // const SCRIPT_PATH = process.argv[1];
     const ID = process.argv[2];
     console.log(`Loading key with ID ${ID}`);
 
-    console.log(await crypto.keyStorage.keys());
+    console.log(await cp11.keyStorage.keys());
 
     const ALG = { name: 'ECDSA', hash: 'SHA-512' };
     const SIGN = ['sign'];
     const VERIFY = ['verify'];
 
-    const privateKey = await crypto.keyStorage.getItem(
+    const privateKey = await cp11.keyStorage.getItem(
         [ObjectClass.PRIVATE_KEY, ID].join(SPLITTER),
         ALG,
         false,
-        SIGN as unknown as globalThis.KeyUsage[],
+        SIGN as unknown as KeyUsage[],
     );
     console.log(`> Private key ${privateKey.id.toString()} loaded`);
-    const publicKey = await crypto.keyStorage.getItem(
+    const publicKey = await cp11.keyStorage.getItem(
         [ObjectClass.PUBLIC_KEY, ID].join(SPLITTER),
         ALG,
         false,
-        VERIFY as unknown as globalThis.KeyUsage[],
+        VERIFY as unknown as KeyUsage[],
     );
     console.log(`> Public key ${privateKey.id.toString()} loaded`);
 
     console.log(`> Generating signature...`);
     const signature = await crypto.subtle.sign(
-        { name: 'ECDSA', hash: 'SHA-512' } as globalThis.KeyAlgorithm,
+        { name: 'ECDSA', hash: 'SHA-512' } as KeyAlgorithm,
         privateKey as unknown as globalThis.CryptoKey,
         Buffer.from('Hello world!'),
     );
-    const ok = await crypto.subtle.verify(
+    const ok = await (cp11 as unknown as Crypto).subtle.verify(
         ALG,
         publicKey as unknown as globalThis.CryptoKey,
         signature,

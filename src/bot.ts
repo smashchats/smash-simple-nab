@@ -3,7 +3,7 @@ import 'dotenv/config';
 import express, { Response } from 'express';
 import * as fs from 'fs';
 import { ObjectClass } from 'graphene-pk11';
-import { Crypto } from 'node-webcrypto-p11';
+import { Crypto as CryptoP11 } from 'node-webcrypto-p11';
 import {
     ECPublicKey,
     SMEConfig,
@@ -12,7 +12,7 @@ import {
     SmashNAB,
 } from 'smash-node-lib';
 
-import { SPLITTER, overrideCryptoObject } from './crypto.js';
+import { SPLITTER, createCryptoP11FromConfig } from './crypto.js';
 
 interface IJsonIdentity {
     id: number;
@@ -39,7 +39,7 @@ const checkEnvironmentVariables = (): boolean => {
 };
 
 const retrieveKeysFromStorage = async (
-    c: Crypto,
+    c: CryptoP11,
     keys: CryptoKeyPair & { thumbprint: string },
     keysMapping: Map<string, string>,
 ) => {
@@ -95,8 +95,8 @@ async function start() {
         );
 
         // Initialize crypto
-        const c = overrideCryptoObject(new Crypto(HSM_CONFIG));
-        SmashMessaging.setCrypto(c as unknown as globalThis.Crypto);
+        const c = createCryptoP11FromConfig(HSM_CONFIG);
+        SmashMessaging.setCrypto(c as unknown as Crypto);
 
         // Parse identity
         const identity = await SmashMessaging.parseIdentityJson(

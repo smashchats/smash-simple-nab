@@ -1,9 +1,10 @@
 import { SessionObject } from 'graphene-pk11';
-import { Crypto } from 'node-webcrypto-p11';
+import { Crypto as CryptoP11 } from 'node-webcrypto-p11';
 
 export const SPLITTER = '-';
 
-export const overrideCryptoObject = (c: Crypto) => {
+export const createCryptoP11FromConfig = (config: any) => {
+    const c = new CryptoP11(config);
     // @ts-ignore
     c.keyStorage.getItemById = (classAndId: string): SessionObject | null => {
         const [keyClass, id] = classAndId.split(SPLITTER);
@@ -21,7 +22,5 @@ export const overrideCryptoObject = (c: Crypto) => {
         );
         return key;
     };
-    // @ts-ignore
-    c.subtle.checkRequiredArguments = (...args: any) => {};
     return c;
 };
