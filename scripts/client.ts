@@ -54,6 +54,7 @@ async function discoverProfiles(): Promise<void> {
         return;
     }
     // await user.sendMessage(nabDid, { type: 'discover' });
+    displayMenu();
 }
 
 async function performAction(

@@ -133,6 +133,10 @@ async function start() {
         const PASS_WEIGHT = 0;
         const SMASH_WEIGHT = 100;
 
+        nab.on('message', (did: SmashDID, message: any) => {
+            console.log(`> ${did.ik} sent message:`, JSON.stringify(message));
+        });
+
         nab.on('join', async (did: SmashDID) => {
             console.log(`> ${did.ik} joined`);
             const node = graph.add({ group: 'nodes', data: { id: did.ik } });
