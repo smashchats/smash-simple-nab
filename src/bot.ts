@@ -106,7 +106,7 @@ async function start() {
         );
 
         // Initialize NAB
-        const nab = new SmashNAB(identity);
+        const nab = new SmashNAB(identity, 'LOG');
         await nab.initEndpoints([SME_CONFIG]);
 
         console.log('JOIN INFO:');
