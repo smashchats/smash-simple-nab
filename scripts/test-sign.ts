@@ -34,7 +34,7 @@ async function main() {
     }
     const config = JSON.parse(process.env.HSM_CONFIG);
     const crypto = new Crypto(config);
-    setEngine('@peculiar/webcrypto', crypto);
+    setEngine('@peculiar/webcrypto', crypto as unknown as globalThis.Crypto);
     overrideCryptoObject(crypto);
 
     // const NODE_PATH = process.argv[0];
@@ -52,26 +52,26 @@ async function main() {
         [ObjectClass.PRIVATE_KEY, ID].join(SPLITTER),
         ALG,
         false,
-        SIGN,
+        SIGN as unknown as globalThis.KeyUsage[],
     );
     console.log(`> Private key ${privateKey.id.toString()} loaded`);
     const publicKey = await crypto.keyStorage.getItem(
         [ObjectClass.PUBLIC_KEY, ID].join(SPLITTER),
         ALG,
         false,
-        VERIFY,
+        VERIFY as unknown as globalThis.KeyUsage[],
     );
     console.log(`> Public key ${privateKey.id.toString()} loaded`);
 
     console.log(`> Generating signature...`);
     const signature = await crypto.subtle.sign(
-        { name: 'ECDSA', hash: 'SHA-512' },
-        privateKey,
+        { name: 'ECDSA', hash: 'SHA-512' } as globalThis.KeyAlgorithm,
+        privateKey as unknown as globalThis.CryptoKey,
         Buffer.from('Hello world!'),
     );
     const ok = await crypto.subtle.verify(
         ALG,
-        publicKey,
+        publicKey as unknown as globalThis.CryptoKey,
         signature,
         Buffer.from('Hello world!'),
     );
