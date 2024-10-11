@@ -56,8 +56,10 @@ const retrieveKeysFromStorage = async (
     );
 
     return {
-        privateKey,
-        publicKey: await ECPublicKey.create(publicKey),
+        privateKey: privateKey as unknown as globalThis.CryptoKey,
+        publicKey: await ECPublicKey.create(
+            publicKey as unknown as globalThis.CryptoKey,
+        ),
     };
 };
 
@@ -86,7 +88,7 @@ async function start() {
 
         // Initialize crypto
         const c = overrideCryptoObject(new Crypto(HSM_CONFIG));
-        SmashMessaging.setCrypto(c);
+        SmashMessaging.setCrypto(c as unknown as globalThis.Crypto);
 
         // Parse identity
         const identity = await SmashMessaging.parseIdentityJson(
