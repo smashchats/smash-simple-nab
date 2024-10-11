@@ -6,7 +6,6 @@ import { ObjectClass } from 'graphene-pk11';
 import { Crypto } from 'node-webcrypto-p11';
 import {
     ECPublicKey,
-    IJsonIdentity,
     SMEConfig,
     SmashDID,
     SmashMessaging,
@@ -14,6 +13,15 @@ import {
 } from 'smash-node-lib';
 
 import { SPLITTER, overrideCryptoObject } from './crypto.js';
+
+interface IJsonIdentity {
+    id: number;
+    signingKey: CryptoKeyPair;
+    exchangeKey: CryptoKeyPair;
+    preKeys: CryptoKeyPair[];
+    signedPreKeys: CryptoKeyPair[];
+    createdAt: string;
+}
 
 // Smash Neighborhood Admin Bot (NAB) 0.0.0-alpha
 
