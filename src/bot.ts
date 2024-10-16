@@ -10,17 +10,18 @@ import {
 } from 'smash-node-lib';
 
 export class Bot {
-    private nab: SmashNAB;
-    private users: {
+    public readonly nab: SmashNAB;
+    public readonly users: {
         did: SmashDID;
         score: number;
         node: cytoscape.CollectionReturnValue;
-    }[] = [];
+    }[];
     private graph: cytoscape.Core;
 
     constructor(identity: Identity) {
         this.graph = cytoscape();
         this.nab = new SmashNAB(identity, 'LOG');
+        this.users = [];
     }
 
     public async initEndpoints(smes: SMEConfig[]) {
@@ -59,6 +60,10 @@ export class Bot {
     public async start() {
         this.setupEventListeners();
         this.setupGraphVisualization();
+    }
+
+    public async stop() {
+        await this.nab.close();
     }
 
     private setupEventListeners() {

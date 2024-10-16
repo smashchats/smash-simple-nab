@@ -3,19 +3,20 @@
         "target": "ESNext",
         "module": "NodeNext",
         "moduleResolution": "NodeNext",
-        "preserveSymlinks": true,
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "strict": true,
+        "forceConsistentCasingInFileNames": true,
+        "skipLibCheck": true,
         "outDir": "./dist",
         "rootDir": ".",
-        "esModuleInterop": true,
-        "skipLibCheck": true,
-        "strict": true,
         "baseUrl": ".",
         "paths": {
             "@src/*": ["smash-node-lib/src/*"],
-            "smash-node-lib": ["smash-node-lib/src/index.js"]
-        }
+            "smash-node-lib": ["smash-node-lib/src/index.ts"]
+        },
+        "types": ["jest", "node"]
     },
-    "include": ["src", "scripts"],
-    "exclude": ["node_modules", "dist"],
-    "references": [{ "path": "/workspaces/smash-node-lib" }]
+    "include": ["src"],
+    "exclude": ["node_modules", "dist"]
 }
