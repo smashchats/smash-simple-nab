@@ -4,7 +4,7 @@
     "description": "Smash Neighborhood Admin Bot Demo",
     "type": "module",
     "scripts": {
-        "start": "nodemon --exec tsx --ignore './scripts/*' ./src/bot.ts",
+        "start": "nodemon --exec tsx --ignore './scripts/*' ./src/index.ts",
         "build": "rm -rf dist/* && tsc && tsc-alias",
         "prettier-format": "prettier --config .prettierrc 'src/**/*.ts' --write",
         "script/client": "tsx ./scripts/client.ts",

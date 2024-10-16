@@ -1,154 +1,85 @@
 import cytoscape from 'cytoscape';
 import 'dotenv/config';
 import express, { Response } from 'express';
-import * as fs from 'fs';
-import { ObjectClass } from 'graphene-pk11';
-import { Crypto as CryptoP11 } from 'node-webcrypto-p11';
 import {
-    ECPublicKey,
+    Identity,
     SMEConfig,
+    SMEConfigJSONWithoutDefaults,
     SmashDID,
-    SmashMessaging,
     SmashNAB,
 } from 'smash-node-lib';
 
-import { SPLITTER, createCryptoP11FromConfig } from './crypto.js';
+export class Bot {
+    private nab: SmashNAB;
+    private users: {
+        did: SmashDID;
+        score: number;
+        node: cytoscape.CollectionReturnValue;
+    }[] = [];
+    private graph: cytoscape.Core;
 
-interface IJsonIdentity {
-    id: number;
-    signingKey: CryptoKeyPair;
-    exchangeKey: CryptoKeyPair;
-    preKeys: CryptoKeyPair[];
-    signedPreKeys: CryptoKeyPair[];
-    createdAt: string;
-}
+    constructor(identity: Identity) {
+        this.graph = cytoscape();
+        this.nab = new SmashNAB(identity, 'LOG');
+    }
 
-// Smash Neighborhood Admin Bot (NAB) 0.0.0-alpha
+    public async initEndpoints(smes: SMEConfig[]) {
+        await this.nab.initEndpoints(smes);
+        await this.printJoinInfo(smes);
+    }
 
-// Helper functions
-const checkEnvironmentVariables = (): boolean => {
-    const requiredVars = ['HSM_CONFIG', 'NAB_ID_FILEPATH', 'SME_CONFIG'];
-    let errors = 0;
-    for (const varName of requiredVars) {
-        if (!process.env[varName]) {
-            console.error(`${varName} missing.`);
-            errors++;
+    public async printJoinInfo(smes: SMEConfigJSONWithoutDefaults[] = []) {
+        const joinInfo = await this.nab.getJoinInfo(smes);
+        console.log('JOIN INFO:');
+        console.log(JSON.stringify(joinInfo));
+    }
+
+    private exportUsers() {
+        return this.users.map((user) => ({ ...user, node: undefined }));
+    }
+
+    private async sendUsersToSession(did: SmashDID) {
+        await this.nab.sendMessage(did, {
+            type: 'profiles',
+            data: this.exportUsers(),
+        });
+    }
+
+    private async refreshGraphScores() {
+        const pageRank = this.graph.elements().pageRank({});
+        for (const user of this.users) user.score = pageRank.rank(user.node);
+        console.log(
+            `notifying ${this.users.length} users of the updated graph.`,
+        );
+        for (const user of this.users) {
+            await this.sendUsersToSession(user.did);
         }
     }
-    return errors === 0;
-};
 
-const retrieveKeysFromStorage = async (
-    c: CryptoP11,
-    keys: CryptoKeyPair & { thumbprint: string },
-    keysMapping: Map<string, string>,
-) => {
-    const storedId = keysMapping.get(keys.thumbprint);
-    console.info('retrieving keys from storage', keys.thumbprint, storedId);
-
-    if (!storedId) {
-        throw new Error("Keys couldn't be retrieved from storage.");
+    public async start() {
+        this.setupEventListeners();
+        this.setupGraphVisualization();
     }
 
-    const privateKey = await c.keyStorage.getItem(
-        [ObjectClass.PRIVATE_KEY, storedId].join(SPLITTER),
-        keys.privateKey.algorithm,
-        keys.privateKey.extractable,
-        keys.privateKey.usages,
-    );
-    const publicKey = await c.keyStorage.getItem(
-        [ObjectClass.PUBLIC_KEY, storedId].join(SPLITTER),
-        keys.publicKey.algorithm,
-        keys.publicKey.extractable,
-        keys.publicKey.usages,
-    );
-
-    return {
-        privateKey: privateKey as unknown as globalThis.CryptoKey,
-        publicKey: await ECPublicKey.create(
-            publicKey as unknown as globalThis.CryptoKey,
-        ),
-    };
-};
-
-// Main function to start the NAB
-async function start() {
-    // Check for required environment variables
-    if (!checkEnvironmentVariables()) {
-        return process.exit(1);
-    }
-
-    // Parse configuration
-    const SME_CONFIG = JSON.parse(process.env.SME_CONFIG!) as SMEConfig;
-    const HSM_CONFIG = JSON.parse(process.env.HSM_CONFIG!);
-
-    // TODO: keys should be auto-managed interacting with both a PLC and an HSM (out of scope for v0.0.1)
-    fs.readFile(process.env.NAB_ID_FILEPATH!, 'utf8', async (error, data) => {
-        if (error) return console.error(error);
-
-        const hsmIdentity = JSON.parse(data) as {
-            identity: IJsonIdentity;
-            map: string[][];
-        };
-        const keysMapping = new Map<string, string>(
-            hsmIdentity.map as Iterable<[string, string]>,
-        );
-
-        // Initialize crypto
-        const c = createCryptoP11FromConfig(HSM_CONFIG);
-        SmashMessaging.setCrypto(c as unknown as Crypto);
-
-        // Parse identity
-        const identity = await SmashMessaging.parseIdentityJson(
-            hsmIdentity.identity,
-            async (keys: CryptoKeyPair & { thumbprint: string }) =>
-                retrieveKeysFromStorage(c, keys, keysMapping),
-        );
-
-        // Initialize NAB
-        const nab = new SmashNAB(identity, 'LOG');
-        await nab.initEndpoints([SME_CONFIG]);
-
-        console.log('JOIN INFO:');
-        console.log(JSON.stringify(await nab.getJoinInfo([SME_CONFIG])));
-
-        type GraphEntry = {
-            did: SmashDID;
-            score: number;
-            node: cytoscape.CollectionReturnValue;
-        };
-        const users: GraphEntry[] = [];
-        const graph = cytoscape();
-        const exportUsers = () =>
-            users.map((user) => ({ ...user, node: undefined }));
-
-        const sendUsersToSession = async (did: SmashDID) => {
-            await nab.sendMessage(did, {
-                type: 'profiles',
-                data: exportUsers(),
-            });
-        };
-
+    private setupEventListeners() {
         const DEFAULT_EDGE_WEIGHT = 20;
-        const PASS_WEIGHT = 0;
         const SMASH_WEIGHT = 100;
 
-        // nab.on('message', (did: SmashDID, message: any) => {
-        //     console.log(
-        //         `> ${did.ik} sent message:`,
-        //         JSON.stringify(message, null, 2),
-        //     );
-        // });
-
-        nab.on('join', async (did: SmashDID) => {
+        this.nab.on('join', async (did: SmashDID) => {
             console.log(`> ${did.ik} joined`);
-            const node = graph.add({ group: 'nodes', data: { id: did.ik } });
-            users.push({ did: did, score: 0, node });
+            const node = this.graph.add({
+                group: 'nodes',
+                data: { id: did.ik },
+            });
+            this.users.push({ did: did, score: 0, node });
 
-            // Add weak connections to all existing users
-            users.forEach((existingUser) => {
+            console.log(
+                `Adding user ${did.ik} to the graph with weak connections.`,
+            );
+
+            this.users.forEach((existingUser) => {
                 if (existingUser.did.ik !== did.ik) {
-                    graph.add({
+                    this.graph.add({
                         group: 'edges',
                         data: {
                             source: did.ik,
@@ -159,70 +90,61 @@ async function start() {
                 }
             });
 
-            await sendUsersToSession(did);
+            await this.refreshGraphScores();
         });
 
-        nab.on(
+        this.nab.on(
             'action',
             async (
                 sender: SmashDID,
                 action: { target: SmashDID; action: string },
             ) => {
-                let weight = DEFAULT_EDGE_WEIGHT;
-
-                switch (action.action) {
-                    case 'smash':
-                        weight = SMASH_WEIGHT;
-                        break;
-                    case 'pass':
-                        weight = PASS_WEIGHT;
-                        break;
-                    case 'clear':
-                        weight = DEFAULT_EDGE_WEIGHT;
-                        break;
-                    default:
-                        console.warn(`Unknown action: ${action.action}`);
-                        return;
-                }
-
-                const edge = graph
-                    .edges()
-                    .filter(
-                        (e) =>
-                            e.data('source') === sender.ik &&
-                            e.data('target') === action.target.ik,
-                    );
-
-                if (edge.length > 0) {
-                    edge.data('weight', weight);
+                if (action.action === 'pass') {
+                    // TODO: remove edge
                 } else {
-                    graph.add({
-                        group: 'edges',
-                        data: {
-                            source: sender.ik,
-                            target: action.target.ik,
-                            weight: weight,
-                        },
-                    });
+                    const weight =
+                        action.action === 'smash'
+                            ? SMASH_WEIGHT
+                            : DEFAULT_EDGE_WEIGHT;
+                    const edge = this.graph
+                        .edges()
+                        .filter(
+                            (e) =>
+                                e.data('source') === sender.ik &&
+                                e.data('target') === action.target.ik,
+                        );
+                    console.log(
+                        `found edges ${sender.ik} -> ${action.target.ik}: ${edge.length}`,
+                    );
+                    if (edge.length > 0) {
+                        console.log(`updating existing edge (${weight})`);
+                        edge.data('weight', weight);
+                    } else {
+                        console.log(
+                            `creating new edge between nodes (${weight})`,
+                        );
+                        this.graph.add({
+                            group: 'edges',
+                            data: {
+                                source: sender.ik,
+                                target: action.target.ik,
+                                weight: weight,
+                            },
+                        });
+                    }
                 }
-
-                const pageRank = graph.elements().pageRank({});
-                for (const user of users) {
-                    user.score = pageRank.rank(user.node);
-                }
-
-                // Notify all users about the updated graph
-                for (const user of users) {
-                    await sendUsersToSession(user.did);
-                }
+                await this.refreshGraphScores();
             },
         );
+    }
 
-        // Graph visualization endpoint [DEV]
+    private setupGraphVisualization() {
         const app = express();
         app.get('/', (_, res: Response) => {
             res.setHeader('Content-Type', 'text/html');
-            const graphStr = JSON.stringify((graph.json() as any)['elements']);
+            const graphStr = JSON.stringify(
+                (this.graph.json() as any)['elements'],
+            );
             res.send(`
               <style>
               div#cy {
@@ -274,7 +196,5 @@ async function start() {
         app.listen(port, () => {
             console.log(`>>> open users graph at http://localhost:${port}`);
         });
-    });
+    }
 }
-
-start();
