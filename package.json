@@ -5,7 +5,7 @@
     "type": "module",
     "scripts": {
         "start": "nodemon --exec tsx --ignore './scripts/*' ./src/index.ts",
-        "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.cjs",
+        "test": "jest --config jest.config.cjs --coverage",
         "build": "rm -rf dist/* && tsc && tsc-alias",
         "prettier-format": "prettier --config .prettierrc 'src/**/*.ts' --write",
         "script/client": "tsx ./scripts/client.ts",

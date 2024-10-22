@@ -8,7 +8,7 @@ import {
 } from 'smash-node-lib';
 import { Server, Socket } from 'socket.io';
 
-import { Bot } from '../../src/bot';
+import { Bot } from '../../src/bot.js';
 
 describe('NAB integration testing', () => {
     let bot: Bot;
