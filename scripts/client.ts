@@ -15,20 +15,45 @@ const rl = readline.createInterface({
 let user: SmashUser;
 let nabDid: SmashDID;
 
+SmashMessaging.setCrypto(crypto);
+type DID = { ik: string };
+type Profile = { did: DID; score: number };
+const DICT: Record<string, string> = {};
+const sha1 = async (str: string) =>
+    Buffer.from(
+        await crypto.subtle.digest('SHA-1', new TextEncoder().encode(str)),
+    ).toString('base64');
+const printDID = async (did: DID) => {
+    const key = await sha1(did.ik);
+    if (!DICT[key]) DICT[key] = did.ik;
+    return key;
+};
+const getDID = (key: string) => DICT[key] || key;
+
 async function createUser(): Promise<SmashUser> {
-    SmashMessaging.setCrypto(crypto);
     const identity = await SmashMessaging.generateIdentity();
-    const user = new SmashUser(identity);
-    user.on('nbh_profiles', (_, profiles) => {
-        console.log('Discovered profiles:');
-        profiles.forEach((profile: { ik: string }, index: number) => {
-            console.log(`${index + 1}. DID: ${profile.ik}`);
-        });
+    const user = new SmashUser(identity, 'LOG');
+
+    user.on('nbh_profiles', async (_, profiles: Profile[]) => {
+        console.log('\n\nDiscovered profiles:');
+        const sortedProfiles = profiles.toSorted((a, b) => b.score - a.score);
+        for (let index = 0; index < sortedProfiles.length; index++) {
+            const profile = sortedProfiles[index];
+            const printedDID = await printDID(profile.did);
+            console.log(
+                `${index + 1}. (${Math.round(profile.score * 100)}) ${printedDID}`,
+            );
+        }
         displayMenu();
     });
+
     user.on('message', (message) => {
-        console.log('Received message:', JSON.stringify(message, null, 2));
+        if (message.type === 'profiles') {
+            return;
+        }
+        console.info('\n\nReceived message:', JSON.stringify(message, null, 2));
     });
+
     return user;
 }
 
@@ -38,7 +63,9 @@ async function joinNeighborhood(): Promise<void> {
             const joinInfo: SmashActionJson = JSON.parse(joinInfoStr);
             await user.join(joinInfo);
             nabDid = joinInfo.did;
-            console.log(`Successfully queued request to join NBH ${nabDid.ik}`);
+            console.log(
+                `Successfully queued request to join NBH ${await printDID(nabDid)}`,
+            );
             displayMenu();
         } catch (error) {
             console.error('Error joining neighborhood:', error);
@@ -68,7 +95,7 @@ async function performAction(
 
     rl.question('Enter the DID (ik) of the target user: ', async (targetIk) => {
         const targetDid: SmashDID = {
-            ik: targetIk,
+            ik: getDID(targetIk),
             ek: '',
             signature: '',
             endpoints: [],
@@ -88,7 +115,8 @@ function displayMenu(): void {
     console.log('3. Smash');
     console.log('4. Pass');
     console.log('5. Clear');
-    console.log('6. Exit');
+    console.log('6. Show ID');
+    console.log('7. Exit');
     rl.question('Select an option: ', handleMenuChoice);
 }
 
@@ -110,6 +138,14 @@ async function handleMenuChoice(choice: string): Promise<void> {
             await performAction('clear');
             break;
         case '6':
+            user.getDID()
+                .then((did) => printDID(did))
+                .then((key) => {
+                    console.log(`\n\nYour DID: ${key}\n`);
+                    displayMenu();
+                });
+            break;
+        case '7':
             console.log('Exiting...');
             rl.close();
             return;
@@ -123,7 +159,9 @@ async function main() {
     console.log('Welcome to the NBH Client!');
     console.log('Creating a new user...');
     user = await createUser();
-    console.log('User created successfully.');
+    console.log(
+        `User ${await printDID(await user.getDID())} created successfully.`,
+    );
     displayMenu();
 }
 
