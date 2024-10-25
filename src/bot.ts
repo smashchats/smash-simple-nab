@@ -1,6 +1,5 @@
 import cytoscape from 'cytoscape';
 import 'dotenv/config';
-import express, { Response } from 'express';
 import {
     Identity,
     SMEConfig,
@@ -16,7 +15,8 @@ export class Bot {
         score: number;
         node: cytoscape.CollectionReturnValue;
     }[];
-    private graph: cytoscape.Core;
+
+    protected graph: cytoscape.Core;
 
     constructor(identity: Identity) {
         this.graph = cytoscape();
@@ -59,7 +59,6 @@ export class Bot {
 
     public async start() {
         this.setupEventListeners();
-        this.setupGraphVisualization();
     }
 
     public async stop() {
@@ -141,65 +140,5 @@ export class Bot {
                 await this.refreshGraphScores();
             },
         );
-    }
-
-    private setupGraphVisualization() {
-        const app = express();
-        app.get('/', (_, res: Response) => {
-            res.setHeader('Content-Type', 'text/html');
-            const graphStr = JSON.stringify(
-                (this.graph.json() as any)['elements'],
-            );
-            res.send(`
-              <style>
-              div#cy {
-                width: 100%;
-                height: 100%;
-              }
-              </style>
-              <body>
-              <div id="cy">
-              </div>
-              <script type="module">
-              import cytoscape from "https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.29.2/cytoscape.esm.min.mjs";
-                var cy = cytoscape({
-                  container: document.getElementById('cy'),
-                  elements: ${graphStr},
-                  layout: {
-                    name: 'cose',
-                    ready: function(){},
-                    stop: function(){},
-                    animate: true,
-                    animationEasing: undefined,
-                    animationDuration: undefined,
-                    animateFilter: function ( node, i ){ return true; },
-                    animationThreshold: 250,
-                    refresh: 20,
-                    fit: true,
-                    padding: 30,
-                    boundingBox: undefined,
-                    nodeDimensionsIncludeLabels: false,
-                    randomize: false,
-                    componentSpacing: 40,
-                    nodeRepulsion: function( node ){ return 2048; },
-                    nodeOverlap: 4,
-                    idealEdgeLength: function( edge ){ return 32; },
-                    edgeElasticity: function( edge ){ return 32; },
-                    nestingFactor: 1.2,
-                    gravity: 1,
-                    numIter: 1000,
-                    initialTemp: 1000,
-                    coolingFactor: 0.99,
-                    minTemp: 1.0
-                  }
-                });
-                </script>
-              </body>
-          `);
-        });
-        const port = 3030;
-        app.listen(port, () => {
-            console.log(`>>> open users graph at http://localhost:${port}`);
-        });
     }
 }

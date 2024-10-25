@@ -12,7 +12,6 @@ import { Bot } from '../../src/bot.js';
 
 describe('NAB integration testing', () => {
     let bot: Bot;
-    let user: SmashUser;
     let ioServer: Server;
     let socketServerUrl: string;
     let activeSockets: Socket[] = [];
@@ -69,27 +68,59 @@ describe('NAB integration testing', () => {
             preKeyPair: botIdentity.signedPreKeys[0],
         };
         await bot.initEndpoints([SME_CONFIG]);
-
-        // Start the bot
         await bot.start();
-
-        // Set up a test user
-        const userIdentity = await SmashMessaging.generateIdentity();
-        user = new SmashUser(userIdentity);
     });
 
     afterEach(async () => {
-        await user.close();
         await bot.stop();
+        activeSockets.forEach((socket) => socket.disconnect());
         activeSockets = [];
         jest.restoreAllMocks();
     });
 
-    test('User can join the neighborhood', async () => {
+    test('A new user can join the neighborhood', async () => {
+        const user = new SmashUser(await SmashMessaging.generateIdentity());
         const joinInfo = await bot.nab.getJoinInfo();
         const waitForBotJoinEvent = waitFor(bot.nab, 'join');
         await user.join(joinInfo);
         await waitForBotJoinEvent;
         expect(bot.users.length).toBe(1);
+        await user.close();
+    });
+
+    describe('With multiple users', () => {
+        test('discovering', async () => {
+            const joinInfo = await bot.nab.getJoinInfo();
+            const aliceIdentity = await SmashMessaging.generateIdentity();
+            const alice = new SmashUser(aliceIdentity);
+            const bobIdentity = await SmashMessaging.generateIdentity();
+            const bob = new SmashUser(bobIdentity);
+            const waitForAliceToJoin = waitFor(bot.nab, 'join');
+            await alice.join(joinInfo);
+            await waitForAliceToJoin;
+            const waitForBobToJoin = waitFor(bot.nab, 'join');
+            await bob.join(joinInfo);
+            await waitForBobToJoin;
+            expect(bot.users.length).toBe(2);
+        });
+
+        // test('smashing', async () => {
+        //     const joinInfo = await bot.nab.getJoinInfo();
+        //     const aliceIdentity = await SmashMessaging.generateIdentity();
+        //     const alice = new SmashUser(aliceIdentity);
+        //     const bobIdentity = await SmashMessaging.generateIdentity();
+        //     const bob = new SmashUser(bobIdentity);
+        //     const waitForAliceToJoin = waitFor(bot.nab, 'action');
+        //     await alice.join(joinInfo);
+        //     await waitForAliceToJoin;
+        //     const waitForBobToJoin = waitFor(bot.nab, 'action');
+        //     await bob.join(joinInfo);
+        //     await waitForBobToJoin;
+        //     expect(bot.users.length).toBe(2);
+
+        //     // DISCOVER BEFORE SMASHING: scores should low
+        //     // DISCOVER AFTER SMASHING: scores should higher
+        // SECOND DEGREE SMASHING: should increase score
+        // });
     });
 });

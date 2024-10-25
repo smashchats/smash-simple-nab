@@ -30,30 +30,30 @@ const printDID = async (did: DID) => {
 };
 const getDID = (key: string) => DICT[key] || key;
 
+const addDiscoverListener = (user: SmashUser) => {
+    user.once('nbh_profiles', async (_, profiles: Profile[]) =>
+        console.log(
+            '\n\nDiscovered profiles:',
+            ...(await Promise.all(
+                profiles
+                    .toSorted((a, b) => b.score - a.score)
+                    .map(
+                        async (profile, index) =>
+                            `\n${index + 1}. (${Math.round(profile.score * 100)}) ${await printDID(profile.did)}`,
+                    ),
+            )),
+            '\n',
+        ),
+    );
+};
+
 async function createUser(): Promise<SmashUser> {
     const identity = await SmashMessaging.generateIdentity();
     const user = new SmashUser(identity, 'LOG');
-
-    user.on('nbh_profiles', async (_, profiles: Profile[]) => {
-        console.log('\n\nDiscovered profiles:');
-        const sortedProfiles = profiles.toSorted((a, b) => b.score - a.score);
-        for (let index = 0; index < sortedProfiles.length; index++) {
-            const profile = sortedProfiles[index];
-            const printedDID = await printDID(profile.did);
-            console.log(
-                `${index + 1}. (${Math.round(profile.score * 100)}) ${printedDID}`,
-            );
-        }
-        displayMenu();
-    });
-
+    addDiscoverListener(user);
     user.on('message', (message) => {
-        if (message.type === 'profiles') {
-            return;
-        }
         console.info('\n\nReceived message:', JSON.stringify(message, null, 2));
     });
-
     return user;
 }
 
@@ -80,7 +80,7 @@ async function discoverProfiles(): Promise<void> {
         displayMenu();
         return;
     }
-    // await user.sendMessage(nabDid, { type: 'discover' });
+    // await user.discover();
     displayMenu();
 }
 

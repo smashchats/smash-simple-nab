@@ -16,6 +16,7 @@ Neighborhoods are communities where people connect, interact, and build trust wi
 
 ## V0.0.0-alpha Goals
 
+-   [-] Document this README.md
 -   [x] 1:1 chats text-based
 -   [x] SME for sync chat scenarios
 -   [ ] Smash/Pass actions
@@ -29,7 +30,6 @@ Neighborhoods are communities where people connect, interact, and build trust wi
 -   [ ] Trust DID (endorse)
 -   [ ] Mobile app: show profile endorsements with Smashed
 -   [ ] NAB: kinkverse.org (handle)
--   [x] Document this README.md
 -   [ ] Compose Neighborhood deployment
 -   [ ] Compose Neighborhood tests
 
