@@ -16,24 +16,24 @@ let user: SmashUser;
 let nabDid: SmashDID;
 
 SmashMessaging.setCrypto(crypto);
-type DID = { ik: string };
-type Profile = { did: DID; score: number };
+type Profile = { did: SmashDID; score: number };
 const DICT: Record<string, string> = {};
 const sha1 = async (str: string) =>
     Buffer.from(
         await crypto.subtle.digest('SHA-1', new TextEncoder().encode(str)),
     ).toString('base64');
-const printDID = async (did: DID) => {
+const printDID = async (did: SmashDID) => {
     const key = await sha1(did.ik);
     if (!DICT[key]) DICT[key] = did.ik;
     return key;
 };
 const getDID = (key: string) => DICT[key] || key;
 
-const addDiscoverListener = (user: SmashUser) => {
-    user.once('nbh_profiles', async (_, profiles: Profile[]) =>
+const addDiscoverListener = (user: SmashUser, callback?: () => void) => {
+    user.once('nbh_profiles', async (sender, profiles: Profile[]) => {
         console.log(
-            '\n\nDiscovered profiles:',
+            '\n\n',
+            `Discovered profiles (${await printDID(sender)}):`,
             ...(await Promise.all(
                 profiles
                     .toSorted((a, b) => b.score - a.score)
@@ -43,14 +43,14 @@ const addDiscoverListener = (user: SmashUser) => {
                     ),
             )),
             '\n',
-        ),
-    );
+        );
+        callback?.();
+    });
 };
 
 async function createUser(): Promise<SmashUser> {
     const identity = await SmashMessaging.generateIdentity();
     const user = new SmashUser(identity, 'LOG');
-    addDiscoverListener(user);
     user.on('message', (message) => {
         console.info('\n\nReceived message:', JSON.stringify(message, null, 2));
     });
@@ -61,12 +61,12 @@ async function joinNeighborhood(): Promise<void> {
     rl.question('Enter NAB JOIN info (JSON string): ', async (joinInfoStr) => {
         try {
             const joinInfo: SmashActionJson = JSON.parse(joinInfoStr);
+            addDiscoverListener(user, displayMenu);
             await user.join(joinInfo);
             nabDid = joinInfo.did;
             console.log(
                 `Successfully queued request to join NBH ${await printDID(nabDid)}`,
             );
-            displayMenu();
         } catch (error) {
             console.error('Error joining neighborhood:', error);
             displayMenu();
@@ -80,8 +80,9 @@ async function discoverProfiles(): Promise<void> {
         displayMenu();
         return;
     }
-    // await user.discover();
-    displayMenu();
+    addDiscoverListener(user, displayMenu);
+    await user.discover();
+    console.log('Discovering profiles...');
 }
 
 async function performAction(
@@ -93,19 +94,22 @@ async function performAction(
         return;
     }
 
-    rl.question('Enter the DID (ik) of the target user: ', async (targetIk) => {
-        const targetDid: SmashDID = {
-            ik: getDID(targetIk),
-            ek: '',
-            signature: '',
-            endpoints: [],
-        };
-        await user[action](targetDid);
-        console.log(
-            `${action.charAt(0).toUpperCase() + action.slice(1)} action performed successfully.`,
-        );
-        displayMenu();
-    });
+    rl.question(
+        `Enter the DID (ik) of the target user to ${action}: `,
+        async (targetIk) => {
+            const targetDid: SmashDID = {
+                ik: getDID(targetIk),
+                ek: '',
+                signature: '',
+                endpoints: [],
+            };
+            await user[action](targetDid);
+            console.log(
+                `\n${action.charAt(0).toUpperCase() + action.slice(1)} queued.\n`,
+            );
+            setTimeout(displayMenu, 1000);
+        },
+    );
 }
 
 function displayMenu(): void {

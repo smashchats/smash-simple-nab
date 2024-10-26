@@ -1,6 +1,7 @@
 import cytoscape from 'cytoscape';
 import 'dotenv/config';
 import {
+    ActionData,
     Identity,
     SMEConfig,
     SMEConfigJSONWithoutDefaults,
@@ -18,9 +19,9 @@ export class Bot {
 
     protected graph: cytoscape.Core;
 
-    constructor(identity: Identity) {
+    constructor(identity: Identity, name: string = 'NAB') {
         this.graph = cytoscape();
-        this.nab = new SmashNAB(identity, 'LOG');
+        this.nab = new SmashNAB(identity, 'INFO', name);
         this.users = [];
     }
 
@@ -52,9 +53,9 @@ export class Bot {
         console.log(
             `notifying ${this.users.length} users of the updated graph.`,
         );
-        for (const user of this.users) {
-            await this.sendUsersToSession(user.did);
-        }
+        // for (const user of this.users) {
+        //     await this.sendUsersToSession(user.did);
+        // }
     }
 
     public async start() {
@@ -95,50 +96,48 @@ export class Bot {
             });
 
             await this.refreshGraphScores();
+            await this.sendUsersToSession(did);
         });
 
-        this.nab.on(
-            'action',
-            async (
-                sender: SmashDID,
-                action: { target: SmashDID; action: string },
-            ) => {
-                if (action.action === 'pass') {
-                    // TODO: remove edge
-                } else {
-                    const weight =
-                        action.action === 'smash'
-                            ? SMASH_WEIGHT
-                            : DEFAULT_EDGE_WEIGHT;
-                    const edge = this.graph
-                        .edges()
-                        .filter(
-                            (e) =>
-                                e.data('source') === sender.ik &&
-                                e.data('target') === action.target.ik,
-                        );
-                    console.log(
-                        `found edges ${sender.ik} -> ${action.target.ik}: ${edge.length}`,
+        this.nab.on('discover', async (did: SmashDID) => {
+            console.log(`> discovery ${did.ik}`);
+            await this.sendUsersToSession(did);
+        });
+
+        this.nab.on('action', async (sender: SmashDID, action: ActionData) => {
+            if (action.action === 'pass') {
+                // TODO: remove edge
+            } else {
+                const weight =
+                    action.action === 'smash'
+                        ? SMASH_WEIGHT
+                        : DEFAULT_EDGE_WEIGHT;
+                const edge = this.graph
+                    .edges()
+                    .filter(
+                        (e) =>
+                            e.data('source') === sender.ik &&
+                            e.data('target') === action.target.ik,
                     );
-                    if (edge.length > 0) {
-                        console.log(`updating existing edge (${weight})`);
-                        edge.data('weight', weight);
-                    } else {
-                        console.log(
-                            `creating new edge between nodes (${weight})`,
-                        );
-                        this.graph.add({
-                            group: 'edges',
-                            data: {
-                                source: sender.ik,
-                                target: action.target.ik,
-                                weight: weight,
-                            },
-                        });
-                    }
+                console.log(
+                    `found edges ${sender.ik} -> ${action.target.ik}: ${edge.length}`,
+                );
+                if (edge.length > 0) {
+                    console.log(`updating existing edge (${weight})`);
+                    edge.data('weight', weight);
+                } else {
+                    console.log(`creating new edge between nodes (${weight})`);
+                    this.graph.add({
+                        group: 'edges',
+                        data: {
+                            source: sender.ik,
+                            target: action.target.ik,
+                            weight: weight,
+                        },
+                    });
                 }
-                await this.refreshGraphScores();
-            },
-        );
+            }
+            await this.refreshGraphScores();
+        });
     }
 }
