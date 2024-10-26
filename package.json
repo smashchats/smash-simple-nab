@@ -5,6 +5,7 @@
     "type": "module",
     "scripts": {
         "start": "nodemon --exec tsx --ignore './scripts/*' ./src/index.ts",
+        "test:w": "nodemon --exec jest -- --config jest.config.cjs --coverage",
         "test": "jest --config jest.config.cjs --coverage",
         "build": "rm -rf dist/* && tsc && tsc-alias",
         "prettier-format": "prettier --config .prettierrc 'src/**/*.ts' --write",
