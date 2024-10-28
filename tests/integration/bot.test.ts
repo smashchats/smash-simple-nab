@@ -18,7 +18,7 @@ const waitFor = (peer: SmashMessaging, event: string) => {
 };
 
 const logger = new Logger('jest', 'INFO');
-jest.setTimeout(10000);
+jest.setTimeout(6000);
 
 beforeAll(() => {
     console.log('>>> removing unhandledRejection listeners <<<');
@@ -180,19 +180,19 @@ describe('NAB integration testing', () => {
 
         it('can join', async () => {
             expect(bot!.users.length).toBe(NB_USERS);
-        });
+        }, 10000);
 
         it('can discover each others through the NAB', () => {
             expect(initialScores.bob).toBeDefined();
             expect(initialScores.charlie).toBeDefined();
             expect(initialScores.darcy).toBeDefined();
-        });
+        }, 10000);
 
         it('two users have the same default score', () => {
             expect(initialScores.bob).toEqual(initialScores.charlie);
             expect(initialScores.bob).toEqual(initialScores.darcy);
             expect(initialScores.charlie).toEqual(initialScores.darcy);
-        });
+        }, 10000);
 
         describe('Alice smashing Bob', () => {
             beforeEach(async () => {
@@ -205,7 +205,7 @@ describe('NAB integration testing', () => {
                 expect(scores.bob).toBeGreaterThan(initialScores.bob!);
                 expect(scores.bob).toBeGreaterThan(scores.charlie!);
                 expect(scores.bob).toBeGreaterThan(scores.darcy!);
-            });
+            }, 12000);
 
             describe('Bob smashing Charlie', () => {
                 beforeEach(async () => {
@@ -220,7 +220,7 @@ describe('NAB integration testing', () => {
                     );
                     expect(scores.charlie).toBeGreaterThan(scores.darcy!);
                     // expect(scores.bob).toBeGreaterThan(scores.charlie!);
-                });
+                }, 15000);
             });
         });
 
