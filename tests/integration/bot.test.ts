@@ -1,6 +1,7 @@
 import { createServer } from 'http';
 import { AddressInfo } from 'net';
 import {
+    Logger,
     SMEConfig,
     SME_DEFAULT_CONFIG,
     SmashActionJson,
@@ -16,6 +17,8 @@ const waitFor = (peer: SmashMessaging, event: string) => {
     return new Promise((resolve) => peer.once(event, resolve));
 };
 
+const logger = new Logger('jest', 'INFO');
+
 beforeAll(() =>
     (process as any).actual().removeAllListeners('unhandledRejection'),
 );
@@ -23,7 +26,7 @@ beforeEach(() =>
     (process as any)
         .actual()
         .on('unhandledRejection', (reason: any, promise: Promise<any>) => {
-            console.error('unhandledRejection', reason, promise);
+            SmashMessaging.handleError(reason, promise, logger);
         }),
 );
 
