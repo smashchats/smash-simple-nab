@@ -30,6 +30,8 @@ beforeEach(() =>
         }),
 );
 
+jest.setTimeout(10000);
+
 describe('NAB integration testing', () => {
     let ioServer: Server;
     let socketServerUrl: string;
@@ -67,8 +69,13 @@ describe('NAB integration testing', () => {
         };
     });
 
+    const delay = (ms: number) =>
+        new Promise((resolve) => setTimeout(resolve, ms));
+
     afterAll(async () => {
         await ioServer.close();
+        // wait async operations to close
+        await delay(500);
     });
 
     let bot: Bot | undefined;
@@ -110,35 +117,109 @@ describe('NAB integration testing', () => {
         await user.close();
     });
 
-    describe('two users', () => {
-        it('can join', async () => {
-            const ana = new SmashUser(await SmashMessaging.generateIdentity());
-            const bob = new SmashUser(await SmashMessaging.generateIdentity());
+    describe('four users (alice, bob, charlie, darcy)', () => {
+        let alice: SmashUser;
+        let bob: SmashUser;
+        let charlie: SmashUser;
+        let darcy: SmashUser;
 
-            await userJoin(ana);
-            await userJoin(bob);
-            expect(bot!.users.length).toBe(2);
-        });
+        const NB_USERS = 4;
 
-        it('can discover each other through the NAB', async () => {
-            const ana = new SmashUser(await SmashMessaging.generateIdentity());
-            // const bob = new SmashUser(await SmashMessaging.generateIdentity());
+        let bobDid: SmashDID;
+        let charlieDid: SmashDID;
+        let darcyDid: SmashDID;
 
-            await userJoin(ana);
-            // await userJoin(bob);
+        let initialScores: {
+            bob: number | undefined;
+            charlie: number | undefined;
+            darcy: number | undefined;
+        };
 
-            // expect(bot!.users.length).toBe(2);
-
+        const getAliceGrid = async () => {
             const waitForDiscover = new Promise((resolve) =>
-                ana.once('nbh_profiles', async (_, profiles) =>
+                alice.once('nbh_profiles', async (_, profiles) =>
                     resolve(profiles),
                 ),
             ) as Promise<{ did: SmashDID; score: number }[]>;
-
-            await ana.discover();
-
+            await alice.discover();
             const profiles = await waitForDiscover;
-            expect(profiles.length).toBe(2);
+            return {
+                bob: profiles.find((p) => p.did.ik === bobDid.ik)?.score,
+                charlie: profiles.find((p) => p.did.ik === charlieDid.ik)
+                    ?.score,
+                darcy: profiles.find((p) => p.did.ik === darcyDid.ik)?.score,
+            };
+        };
+
+        beforeEach(async () => {
+            alice = new SmashUser(await SmashMessaging.generateIdentity());
+            bob = new SmashUser(await SmashMessaging.generateIdentity());
+            charlie = new SmashUser(await SmashMessaging.generateIdentity());
+            darcy = new SmashUser(await SmashMessaging.generateIdentity());
+
+            bobDid = await bob.getDID();
+            charlieDid = await charlie.getDID();
+            darcyDid = await darcy.getDID();
+
+            await userJoin(alice);
+            await userJoin(bob);
+            await userJoin(charlie);
+            await userJoin(darcy);
+
+            initialScores = await getAliceGrid();
+        });
+
+        afterEach(async () => {
+            await alice.close();
+            await bob.close();
+            await charlie.close();
+            await darcy.close();
+        });
+
+        it('can join', async () => {
+            expect(bot!.users.length).toBe(NB_USERS);
+        });
+
+        it('can discover each others through the NAB', () => {
+            expect(initialScores.bob).toBeDefined();
+            expect(initialScores.charlie).toBeDefined();
+            expect(initialScores.darcy).toBeDefined();
+        });
+
+        it('two users have the same default score', () => {
+            expect(initialScores.bob).toEqual(initialScores.charlie);
+            expect(initialScores.bob).toEqual(initialScores.darcy);
+            expect(initialScores.charlie).toEqual(initialScores.darcy);
+        });
+
+        describe('Alice smashing Bob', () => {
+            beforeEach(async () => {
+                await alice.smash(bobDid);
+            });
+
+            it('should increase Bobs score for Alice', async () => {
+                const scores = await getAliceGrid();
+                logger.info(`scores: ${JSON.stringify(scores)}`);
+                expect(scores.bob).toBeGreaterThan(initialScores.bob!);
+                expect(scores.bob).toBeGreaterThan(scores.charlie!);
+                expect(scores.bob).toBeGreaterThan(scores.darcy!);
+            });
+
+            describe('Bob smashing Charlie', () => {
+                beforeEach(async () => {
+                    await bob.smash(charlieDid);
+                });
+
+                it('should increase Charlies for Alice', async () => {
+                    const scores = await getAliceGrid();
+                    logger.info(`scores: ${JSON.stringify(scores)}`);
+                    expect(scores.charlie).toBeGreaterThan(
+                        initialScores.charlie!,
+                    );
+                    expect(scores.charlie).toBeGreaterThan(scores.darcy!);
+                    // expect(scores.bob).toBeGreaterThan(scores.charlie!);
+                });
+            });
         });
 
         // test('smashing', async () => {

@@ -7,6 +7,8 @@ import {
     SmashUser,
 } from 'smash-node-lib';
 
+import { last4 } from '../src/bot.js';
+
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -18,12 +20,9 @@ let nabDid: SmashDID;
 SmashMessaging.setCrypto(crypto);
 type Profile = { did: SmashDID; score: number };
 const DICT: Record<string, string> = {};
-const sha1 = async (str: string) =>
-    Buffer.from(
-        await crypto.subtle.digest('SHA-1', new TextEncoder().encode(str)),
-    ).toString('base64');
-const printDID = async (did: SmashDID) => {
-    const key = await sha1(did.ik);
+
+const printDID = (did: SmashDID) => {
+    const key = last4(did.ik);
     if (!DICT[key]) DICT[key] = did.ik;
     return key;
 };
@@ -33,13 +32,13 @@ const addDiscoverListener = (user: SmashUser, callback?: () => void) => {
     user.once('nbh_profiles', async (sender, profiles: Profile[]) => {
         console.log(
             '\n\n',
-            `Discovered profiles (${await printDID(sender)}):`,
+            `Discovered profiles (${printDID(sender)}):`,
             ...(await Promise.all(
                 profiles
                     .toSorted((a, b) => b.score - a.score)
                     .map(
                         async (profile, index) =>
-                            `\n${index + 1}. (${Math.round(profile.score * 100)}) ${await printDID(profile.did)}`,
+                            `\n${index + 1}. (${Math.round(profile.score * 100)}) ${printDID(profile.did)}`,
                     ),
             )),
             '\n',
@@ -50,7 +49,7 @@ const addDiscoverListener = (user: SmashUser, callback?: () => void) => {
 
 async function createUser(): Promise<SmashUser> {
     const identity = await SmashMessaging.generateIdentity();
-    const user = new SmashUser(identity, 'LOG');
+    const user = new SmashUser(identity, 'INFO');
     user.on('message', (message) => {
         console.info('\n\nReceived message:', JSON.stringify(message, null, 2));
     });
@@ -65,7 +64,7 @@ async function joinNeighborhood(): Promise<void> {
             await user.join(joinInfo);
             nabDid = joinInfo.did;
             console.log(
-                `Successfully queued request to join NBH ${await printDID(nabDid)}`,
+                `Successfully queued request to join NBH ${printDID(nabDid)}`,
             );
         } catch (error) {
             console.error('Error joining neighborhood:', error);

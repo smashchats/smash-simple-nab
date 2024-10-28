@@ -169,8 +169,26 @@ class BotGraphVisualizer extends Bot {
                     initialTemp: 1000,
                     coolingFactor: 0.99,
                     minTemp: 1.0
-                  }
-                });
+                  },
+                  style: [
+                    {
+                        selector: 'node',
+                        style: {
+                            label: 'data(short)',
+                        },
+                    },
+                    {
+                        selector: 'edge',
+                        style: {
+                            'width': 3,
+                            'line-color': '#ccc',
+                            'target-arrow-color': '#ccc',
+                            'target-arrow-shape': 'triangle',
+                            'curve-style': 'bezier'
+                        },
+                    },
+                ],
+            });
                 </script>
               </body>
           `);

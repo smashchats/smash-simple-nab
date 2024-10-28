@@ -9,6 +9,9 @@ import {
     SmashNAB,
 } from 'smash-node-lib';
 
+export const last4 = (str: string) =>
+    str.substring(str.length - 6, str.length - 2);
+
 export class Bot {
     public readonly nab: SmashNAB;
     public readonly users: {
@@ -74,26 +77,26 @@ export class Bot {
             console.log(`> ${did.ik} joined`);
             const node = this.graph.add({
                 group: 'nodes',
-                data: { id: did.ik },
+                data: { id: did.ik, short: last4(did.ik) },
             });
             this.users.push({ did: did, score: 0, node });
 
-            console.log(
-                `Adding user ${did.ik} to the graph with weak connections.`,
-            );
-
-            this.users.forEach((existingUser) => {
-                if (existingUser.did.ik !== did.ik) {
-                    this.graph.add({
-                        group: 'edges',
-                        data: {
-                            source: did.ik,
-                            target: existingUser.did.ik,
-                            weight: DEFAULT_EDGE_WEIGHT,
-                        },
-                    });
-                }
-            });
+            console.log(`Adding user ${did.ik} to the graph.`);
+            // console.log(
+            //     `Adding user ${did.ik} to the graph with weak connections.`,
+            // );
+            // this.users.forEach((existingUser) => {
+            //     if (existingUser.did.ik !== did.ik) {
+            //         this.graph.add({
+            //             group: 'edges',
+            //             data: {
+            //                 source: did.ik,
+            //                 target: existingUser.did.ik,
+            //                 weight: DEFAULT_EDGE_WEIGHT,
+            //             },
+            //         });
+            //     }
+            // });
 
             await this.refreshGraphScores();
             await this.sendUsersToSession(did);
@@ -105,38 +108,52 @@ export class Bot {
         });
 
         this.nab.on('action', async (sender: SmashDID, action: ActionData) => {
-            if (action.action === 'pass') {
-                // TODO: remove edge
-            } else {
-                const weight =
-                    action.action === 'smash'
-                        ? SMASH_WEIGHT
-                        : DEFAULT_EDGE_WEIGHT;
-                const edge = this.graph
-                    .edges()
-                    .filter(
-                        (e) =>
-                            e.data('source') === sender.ik &&
-                            e.data('target') === action.target.ik,
-                    );
-                console.log(
-                    `found edges ${sender.ik} -> ${action.target.ik}: ${edge.length}`,
-                );
-                if (edge.length > 0) {
-                    console.log(`updating existing edge (${weight})`);
-                    edge.data('weight', weight);
-                } else {
-                    console.log(`creating new edge between nodes (${weight})`);
-                    this.graph.add({
-                        group: 'edges',
-                        data: {
-                            source: sender.ik,
-                            target: action.target.ik,
-                            weight: weight,
-                        },
-                    });
-                }
+            console.log(
+                `${sender.ik} --> ${action.action} --> ${action.target.ik}`,
+            );
+            if (action.action === 'smash') {
+                this.graph.add({
+                    group: 'edges',
+                    data: {
+                        source: sender.ik,
+                        target: action.target.ik,
+                        weight: DEFAULT_EDGE_WEIGHT,
+                    },
+                });
             }
+
+            // if (action.action === 'pass') {
+            //     // TODO: remove edge
+            // } else {
+            //     const weight =
+            //         action.action === 'smash'
+            //             ? SMASH_WEIGHT
+            //             : DEFAULT_EDGE_WEIGHT;
+            //     const edge = this.graph
+            //         .edges()
+            //         .filter(
+            //             (e) =>
+            //                 e.data('source') === sender.ik &&
+            //                 e.data('target') === action.target.ik,
+            //         );
+            //     console.log(
+            //         `found edges ${sender.ik} -> ${action.target.ik}: ${edge.length}`,
+            //     );
+            //     if (edge.length > 0) {
+            //         console.log(`updating existing edge (${weight})`);
+            //         edge.data('weight', weight);
+            //     } else {
+            //         console.log(`creating new edge between nodes (${weight})`);
+            //         this.graph.add({
+            //             group: 'edges',
+            //             data: {
+            //                 source: sender.ik,
+            //                 target: action.target.ik,
+            //                 weight: weight,
+            //             },
+            //         });
+            //     }
+            // }
             await this.refreshGraphScores();
         });
     }
