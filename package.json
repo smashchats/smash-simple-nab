@@ -5,10 +5,11 @@
     "type": "module",
     "scripts": {
         "start": "nodemon --exec tsx --ignore './scripts/*' ./src/index.ts",
-        "test:w": "nodemon -w tests/**/*.ts -w src/**/*.ts --exec jest -- --config jest.config.cjs --coverage",
+        "test:w": "nodemon --ext ts -w tests/**/*.ts -w src/**/*.ts --exec npm run test",
         "test": "jest --config jest.config.cjs --coverage",
         "build": "rm -rf dist/* && tsc && tsc-alias",
         "prettier-format": "prettier --config .prettierrc 'src/**/*.ts' --write",
+        "script/auto": "tsx ./scripts/automated-client.ts",
         "script/client": "tsx ./scripts/client.ts",
         "script/json": "tsx ./scripts/create-identity.ts",
         "script/id": "tsx ./scripts/generate-identity-hsm.ts",
