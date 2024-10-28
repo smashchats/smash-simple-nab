@@ -1,0 +1,16 @@
+diff --git a/node_modules/jest-util/build/createProcessObject.js b/node_modules/jest-util/build/createProcessObject.js
+index 3111418..40151f6 100644
+--- a/node_modules/jest-util/build/createProcessObject.js
++++ b/node_modules/jest-util/build/createProcessObject.js
+@@ -80,6 +80,11 @@ function createProcessObject() {
+     blacklist: BLACKLIST,
+     keepPrototype: true
+   });
++  Object.defineProperty(newProcess, 'actual', {
++    get() {
++      return process;
++    }
++  });
+   try {
+     // This fails on Node 12, but it's already set to 'process'
+     newProcess[Symbol.toStringTag] = 'process';

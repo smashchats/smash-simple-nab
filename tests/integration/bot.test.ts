@@ -18,19 +18,21 @@ const waitFor = (peer: SmashMessaging, event: string) => {
 };
 
 const logger = new Logger('jest', 'INFO');
-
-beforeAll(() =>
-    (process as any).actual().removeAllListeners('unhandledRejection'),
-);
-beforeEach(() =>
-    (process as any)
-        .actual()
-        .on('unhandledRejection', (reason: any, promise: Promise<any>) => {
-            SmashMessaging.handleError(reason, promise, logger);
-        }),
-);
-
 jest.setTimeout(10000);
+
+beforeAll(() => {
+    console.log('>>> removing unhandledRejection listeners <<<');
+    (process as any).actual.removeAllListeners('unhandledRejection');
+});
+
+beforeEach(() => {
+    (process as any).actual.on(
+        'unhandledRejection',
+        (reason: any, promise: Promise<any>) => {
+            SmashMessaging.handleError(reason, promise, logger);
+        },
+    );
+});
 
 describe('NAB integration testing', () => {
     let ioServer: Server;

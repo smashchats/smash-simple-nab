@@ -70,91 +70,43 @@ export class Bot {
     }
 
     private setupEventListeners() {
-        const DEFAULT_EDGE_WEIGHT = 20;
-        const SMASH_WEIGHT = 100;
+        this.nab.on('join', this.handleJoinEvent.bind(this));
+        this.nab.on('discover', this.handleDiscoverEvent.bind(this));
+        this.nab.on('action', this.handleActionEvent.bind(this));
+    }
 
-        this.nab.on('join', async (did: SmashDID) => {
-            console.log(`> ${did.ik} joined`);
-            const node = this.graph.add({
-                group: 'nodes',
-                data: { id: did.ik, short: last4(did.ik) },
+    private async handleJoinEvent(did: SmashDID) {
+        console.log(`> ${did.ik} joined`);
+        const node = this.graph.add({
+            group: 'nodes',
+            data: { id: did.ik, short: last4(did.ik) },
+        });
+        this.users.push({ did: did, score: 0, node });
+
+        console.log(`Adding user ${did.ik} to the graph.`);
+        await this.refreshGraphScores();
+        await this.sendUsersToSession(did);
+    }
+
+    private async handleDiscoverEvent(did: SmashDID) {
+        console.log(`> discovery ${did.ik}`);
+        await this.sendUsersToSession(did);
+    }
+
+    private async handleActionEvent(sender: SmashDID, action: ActionData) {
+        console.log(
+            `${sender.ik} --> ${action.action} --> ${action.target.ik}`,
+        );
+        if (action.action === 'smash') {
+            this.graph.add({
+                group: 'edges',
+                data: {
+                    source: sender.ik,
+                    target: action.target.ik,
+                    weight: 20,
+                },
             });
-            this.users.push({ did: did, score: 0, node });
-
-            console.log(`Adding user ${did.ik} to the graph.`);
-            // console.log(
-            //     `Adding user ${did.ik} to the graph with weak connections.`,
-            // );
-            // this.users.forEach((existingUser) => {
-            //     if (existingUser.did.ik !== did.ik) {
-            //         this.graph.add({
-            //             group: 'edges',
-            //             data: {
-            //                 source: did.ik,
-            //                 target: existingUser.did.ik,
-            //                 weight: DEFAULT_EDGE_WEIGHT,
-            //             },
-            //         });
-            //     }
-            // });
-
-            await this.refreshGraphScores();
-            await this.sendUsersToSession(did);
-        });
-
-        this.nab.on('discover', async (did: SmashDID) => {
-            console.log(`> discovery ${did.ik}`);
-            await this.sendUsersToSession(did);
-        });
-
-        this.nab.on('action', async (sender: SmashDID, action: ActionData) => {
-            console.log(
-                `${sender.ik} --> ${action.action} --> ${action.target.ik}`,
-            );
-            if (action.action === 'smash') {
-                this.graph.add({
-                    group: 'edges',
-                    data: {
-                        source: sender.ik,
-                        target: action.target.ik,
-                        weight: DEFAULT_EDGE_WEIGHT,
-                    },
-                });
-            }
-
-            // if (action.action === 'pass') {
-            //     // TODO: remove edge
-            // } else {
-            //     const weight =
-            //         action.action === 'smash'
-            //             ? SMASH_WEIGHT
-            //             : DEFAULT_EDGE_WEIGHT;
-            //     const edge = this.graph
-            //         .edges()
-            //         .filter(
-            //             (e) =>
-            //                 e.data('source') === sender.ik &&
-            //                 e.data('target') === action.target.ik,
-            //         );
-            //     console.log(
-            //         `found edges ${sender.ik} -> ${action.target.ik}: ${edge.length}`,
-            //     );
-            //     if (edge.length > 0) {
-            //         console.log(`updating existing edge (${weight})`);
-            //         edge.data('weight', weight);
-            //     } else {
-            //         console.log(`creating new edge between nodes (${weight})`);
-            //         this.graph.add({
-            //             group: 'edges',
-            //             data: {
-            //                 source: sender.ik,
-            //                 target: action.target.ik,
-            //                 weight: weight,
-            //             },
-            //         });
-            //     }
-            // }
-            await this.refreshGraphScores();
-        });
+        }
+        await this.refreshGraphScores();
     }
 }

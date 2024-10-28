@@ -3,7 +3,6 @@ import express, { Response } from 'express';
 import * as fs from 'fs';
 import { ObjectClass } from 'graphene-pk11';
 import http from 'http';
-import { Crypto as CryptoP11 } from 'node-webcrypto-p11';
 import {
     ECPublicKey,
     Identity,
@@ -12,7 +11,7 @@ import {
 } from 'smash-node-lib';
 
 import { Bot } from './bot.js';
-import { SPLITTER, createCryptoP11FromConfig } from './crypto.js';
+import { CryptoP11, SPLITTER } from './crypto.js';
 
 interface IJsonIdentity {
     id: number;
@@ -84,7 +83,7 @@ const loadIdentityFromFile = (
                 hsmIdentity.map as Iterable<[string, string]>,
             );
 
-            const c = createCryptoP11FromConfig(hsmConfig);
+            const c = new CryptoP11(hsmConfig);
             SmashMessaging.setCrypto(c as unknown as Crypto);
 
             const identity = await SmashMessaging.parseIdentityJson(

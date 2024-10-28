@@ -2,7 +2,7 @@
 import { setEngine } from '2key-ratchet';
 import 'dotenv/config';
 import { ObjectClass } from 'graphene-pk11';
-import { SPLITTER, createCryptoP11FromConfig } from 'src/crypto.js';
+import { CryptoP11, SPLITTER } from 'src/crypto.js';
 
 async function main() {
     if (!process.env.HSM_CONFIG) {
@@ -10,7 +10,7 @@ async function main() {
         return process.exit(1);
     }
     const config = JSON.parse(process.env.HSM_CONFIG);
-    const cp11 = createCryptoP11FromConfig(config);
+    const cp11 = new CryptoP11(config);
     setEngine('@peculiar/webcrypto', cp11 as unknown as Crypto);
 
     // const NODE_PATH = process.argv[0];

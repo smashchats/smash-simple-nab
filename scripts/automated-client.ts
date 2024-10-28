@@ -105,9 +105,6 @@ async function main() {
                     Object.values(users).map(({ user }) => user.discover()),
                 );
             },
-            after: async () => {
-                // Wait for discovery responses
-            },
         },
         {
             name: 'Alice smashes Bob',
@@ -157,7 +154,7 @@ async function main() {
         if (step.after) {
             await step.after();
         }
-        await delay(500);
+        await delay(1000);
     }
 
     console.log('\nTest complete! Cleaning up...');
