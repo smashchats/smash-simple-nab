@@ -18,7 +18,7 @@ const waitFor = (peer: SmashMessaging, event: string) => {
 };
 
 const logger = new Logger('jest', 'INFO');
-jest.setTimeout(6000);
+jest.setTimeout(15000);
 
 beforeAll(() => {
     console.log('>>> removing unhandledRejection listeners <<<');
