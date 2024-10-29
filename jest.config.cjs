@@ -21,4 +21,7 @@ module.exports = {
             },
         ],
     },
+    setupFilesAfterEnv: ['<rootDir>/tests/jest.setup.ts'],
+    globalSetup: '<rootDir>/tests/jest.global.cjs',
+    globalTeardown: '<rootDir>/tests/jest.teardown.cjs',
 };

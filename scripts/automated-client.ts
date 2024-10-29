@@ -88,19 +88,19 @@ async function main() {
 
     const scenario = [
         {
-            name: 'Join neighborhood',
+            name: 'All users join neighborhood',
             action: async () => {
-                console.log('\nJoining neighborhood...');
+                console.log('\nUsers are joining the neighborhood...');
                 await Promise.all(
                     Object.values(users).map(({ user }) => user.join(joinInfo)),
                 );
-                console.log('All users joined the neighborhood');
+                console.log('All users joined the neighborhood!');
             },
         },
         {
             name: 'Initial discovery',
             action: async () => {
-                console.log('\nDiscovering profiles...');
+                console.log('\nDiscovering...');
                 await Promise.all(
                     Object.values(users).map(({ user }) => user.discover()),
                 );
@@ -157,7 +157,9 @@ async function main() {
         await delay(1000);
     }
 
-    console.log('\nTest complete! Cleaning up...');
+    console.log('\nTest complete!');
+    await waitForEnter();
+    console.log('\nCleaning up...');
     await Promise.all(Object.values(users).map(({ user }) => user.close()));
     rl.close();
 }

@@ -1,5 +1,6 @@
 {
     "compilerOptions": {
+        "allowJs": true,
         "target": "ESNext",
         "module": "NodeNext",
         "moduleResolution": "NodeNext",
@@ -15,7 +16,8 @@
             "@src/*": ["smash-node-lib/src/*"],
             "smash-node-lib": ["smash-node-lib/src/index.ts"]
         },
-        "types": ["jest", "node"]
+        "types": ["jest", "node"],
+        "typeRoots": ["./types", "./node_modules/@types"]
     },
     "include": ["src", "tests", "scripts"],
     "exclude": ["node_modules", "dist"]

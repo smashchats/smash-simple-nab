@@ -1,7 +1,4 @@
-import { createServer } from 'http';
-import { AddressInfo } from 'net';
 import {
-    Logger,
     SMEConfig,
     SME_DEFAULT_CONFIG,
     SmashActionJson,
@@ -9,74 +6,22 @@ import {
     SmashMessaging,
     SmashUser,
 } from 'smash-node-lib';
-import { Server, Socket } from 'socket.io';
 
 import { Bot } from '../../src/bot.js';
+import { socketServerUrl } from '../jest.global.cjs';
 
 const waitFor = (peer: SmashMessaging, event: string) => {
     return new Promise((resolve) => peer.once(event, resolve));
 };
 
-const logger = new Logger('jest', 'INFO');
-jest.setTimeout(15000);
-
-beforeAll(() => {
-    console.log('>>> removing unhandledRejection listeners <<<');
-    (process as any).actual.removeAllListeners('unhandledRejection');
-});
-
-beforeEach(() => {
-    (process as any).actual.on(
-        'unhandledRejection',
-        (reason: any, promise: Promise<any>) => {
-            SmashMessaging.handleError(reason, promise, logger);
-        },
-    );
-});
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe('NAB integration testing', () => {
-    let ioServer: Server;
-    let socketServerUrl: string;
-    let activeSockets: Socket[] = [];
-    let onSMEDataEvent: jest.Mock;
-    let handleServerData: (
-        socket: Socket,
-        peerId: string,
-        sessionId: string,
-        data: any,
-    ) => Promise<void>;
-
-    beforeAll((done) => {
+    beforeAll(() => {
         SmashMessaging.setCrypto(global.crypto);
-        const httpServer = createServer();
-        ioServer = new Server(httpServer);
-        ioServer.on('connection', async (client: Socket) => {
-            activeSockets.push(client);
-            client.on('data', async (peerId, sessionId, data, acknowledge) => {
-                await handleServerData(client, peerId, sessionId, data);
-                acknowledge();
-            });
-        });
-        httpServer.listen(() => {
-            const port = (httpServer.address() as AddressInfo).port;
-            socketServerUrl = `http://localhost:${port}`;
-            done();
-        });
-        onSMEDataEvent = jest.fn();
-        handleServerData = async (socket, peerId, sessionId, data) => {
-            onSMEDataEvent(peerId, sessionId, data);
-            activeSockets
-                .filter((client) => client.id !== socket.id)
-                .forEach((client) => client.emit('data', sessionId, data));
-        };
     });
 
-    const delay = (ms: number) =>
-        new Promise((resolve) => setTimeout(resolve, ms));
-
     afterAll(async () => {
-        await ioServer.close();
-        // wait async operations to close
         await delay(500);
     });
 
@@ -95,12 +40,11 @@ describe('NAB integration testing', () => {
         await bot.initEndpoints([SME_CONFIG]);
         await bot.start();
         joinInfoWithSME = await bot.nab.getJoinInfo([SME_CONFIG]);
+        await delay(1000);
     });
 
     afterEach(async () => {
-        activeSockets.forEach((socket) => socket.disconnect());
         await bot?.stop();
-        activeSockets = [];
         jest.resetAllMocks();
         bot = undefined;
         joinInfoWithSME = undefined;
@@ -180,19 +124,19 @@ describe('NAB integration testing', () => {
 
         it('can join', async () => {
             expect(bot!.users.length).toBe(NB_USERS);
-        }, 10000);
+        });
 
         it('can discover each others through the NAB', () => {
             expect(initialScores.bob).toBeDefined();
             expect(initialScores.charlie).toBeDefined();
             expect(initialScores.darcy).toBeDefined();
-        }, 10000);
+        });
 
         it('two users have the same default score', () => {
             expect(initialScores.bob).toEqual(initialScores.charlie);
             expect(initialScores.bob).toEqual(initialScores.darcy);
             expect(initialScores.charlie).toEqual(initialScores.darcy);
-        }, 10000);
+        });
 
         describe('Alice smashing Bob', () => {
             beforeEach(async () => {
@@ -201,11 +145,10 @@ describe('NAB integration testing', () => {
 
             it('should increase Bobs score for Alice', async () => {
                 const scores = await getAliceGrid();
-                logger.info(`scores: ${JSON.stringify(scores)}`);
                 expect(scores.bob).toBeGreaterThan(initialScores.bob!);
                 expect(scores.bob).toBeGreaterThan(scores.charlie!);
                 expect(scores.bob).toBeGreaterThan(scores.darcy!);
-            }, 12000);
+            });
 
             describe('Bob smashing Charlie', () => {
                 beforeEach(async () => {
@@ -214,33 +157,13 @@ describe('NAB integration testing', () => {
 
                 it('should increase Charlies for Alice', async () => {
                     const scores = await getAliceGrid();
-                    logger.info(`scores: ${JSON.stringify(scores)}`);
                     expect(scores.charlie).toBeGreaterThan(
                         initialScores.charlie!,
                     );
                     expect(scores.charlie).toBeGreaterThan(scores.darcy!);
-                    // expect(scores.bob).toBeGreaterThan(scores.charlie!);
-                }, 15000);
+                    expect(scores.bob).toBeGreaterThan(scores.darcy!);
+                });
             });
         });
-
-        // test('smashing', async () => {
-        //     const joinInfo = await bot.nab.getJoinInfo();
-        //     const aliceIdentity = await SmashMessaging.generateIdentity();
-        //     const alice = new SmashUser(aliceIdentity);
-        //     const bobIdentity = await SmashMessaging.generateIdentity();
-        //     const bob = new SmashUser(bobIdentity);
-        //     const waitForAliceToJoin = waitFor(bot.nab, 'action');
-        //     await alice.join(joinInfo);
-        //     await waitForAliceToJoin;
-        //     const waitForBobToJoin = waitFor(bot.nab, 'action');
-        //     await bob.join(joinInfo);
-        //     await waitForBobToJoin;
-        //     expect(bot.users.length).toBe(2);
-
-        //     // DISCOVER BEFORE SMASHING: scores should low
-        //     // DISCOVER AFTER SMASHING: scores should higher
-        // SECOND DEGREE SMASHING: should increase score
-        // });
     });
 });
