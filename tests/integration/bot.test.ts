@@ -57,7 +57,11 @@ describe('NAB integration testing', () => {
     };
 
     it('a new user can join the neighborhood', async () => {
-        const user = new SmashUser(await SmashMessaging.generateIdentity());
+        const user = new SmashUser(
+            await SmashMessaging.generateIdentity(),
+            'INFO',
+            'User',
+        );
         await userJoin(user);
         expect(bot!.users.length).toBe(1);
         await user.close();
@@ -98,10 +102,26 @@ describe('NAB integration testing', () => {
         };
 
         beforeEach(async () => {
-            alice = new SmashUser(await SmashMessaging.generateIdentity());
-            bob = new SmashUser(await SmashMessaging.generateIdentity());
-            charlie = new SmashUser(await SmashMessaging.generateIdentity());
-            darcy = new SmashUser(await SmashMessaging.generateIdentity());
+            alice = new SmashUser(
+                await SmashMessaging.generateIdentity(),
+                'DEBUG',
+                'Alice',
+            );
+            bob = new SmashUser(
+                await SmashMessaging.generateIdentity(),
+                'DEBUG',
+                'Bob',
+            );
+            charlie = new SmashUser(
+                await SmashMessaging.generateIdentity(),
+                'DEBUG',
+                'Charlie',
+            );
+            darcy = new SmashUser(
+                await SmashMessaging.generateIdentity(),
+                'DEBUG',
+                'Darcy',
+            );
 
             bobDid = await bob.getDID();
             charlieDid = await charlie.getDID();
@@ -164,6 +184,34 @@ describe('NAB integration testing', () => {
                     expect(scores.bob).toBeGreaterThan(scores.darcy!);
                 });
             });
+        });
+
+        describe('Alice passing Bob', () => {
+            beforeEach(async () => {
+                await alice.pass(bobDid);
+            });
+
+            it('should decrease Bobs score for Alice', async () => {
+                const scores = await getAliceGrid();
+                expect(scores.bob).toBeLessThan(initialScores.bob!);
+                expect(scores.bob).toBeLessThan(scores.charlie!);
+                expect(scores.bob).toBeLessThan(scores.darcy!);
+            });
+
+            // describe('Bob smashing Charlie', () => {
+            //     beforeEach(async () => {
+            //         await bob.smash(charlieDid);
+            //     });
+
+            //     it('should increase Charlies for Alice', async () => {
+            //         const scores = await getAliceGrid();
+            //         expect(scores.charlie).toBeGreaterThan(
+            //             initialScores.charlie!,
+            //         );
+            //         expect(scores.charlie).toBeGreaterThan(scores.darcy!);
+            //         expect(scores.bob).toBeGreaterThan(scores.darcy!);
+            //     });
+            // });
         });
     });
 });

@@ -94,6 +94,9 @@ async function main() {
                 await Promise.all(
                     Object.values(users).map(({ user }) => user.join(joinInfo)),
                 );
+            },
+            after: async () => {
+                await delay(1000);
                 console.log('All users joined the neighborhood!');
             },
         },
@@ -105,6 +108,9 @@ async function main() {
                     Object.values(users).map(({ user }) => user.discover()),
                 );
             },
+            after: async () => {
+                await delay(1000);
+            },
         },
         {
             name: 'Alice smashes Bob',
@@ -114,6 +120,7 @@ async function main() {
             },
             after: async () => {
                 await users.alice.user.discover();
+                await users.bob.user.discover();
             },
         },
         {
@@ -124,6 +131,8 @@ async function main() {
             },
             after: async () => {
                 await users.alice.user.discover();
+                await users.bob.user.discover();
+                await users.charlie.user.discover();
             },
         },
         {
@@ -133,7 +142,29 @@ async function main() {
                 await users.charlie.user.smash(users.darcy.did!);
             },
             after: async () => {
+                await users.charlie.user.discover();
+            },
+        },
+        {
+            name: 'Darcy passes Charlie',
+            action: async () => {
+                await users.darcy.user.pass(users.charlie.did!);
+            },
+            after: async () => {
                 await users.alice.user.discover();
+                await users.bob.user.discover();
+                await users.charlie.user.discover();
+                await users.darcy.user.discover();
+            },
+        },
+        {
+            name: 'Charlie passes Darcy',
+            action: async () => {
+                console.log('\nCharlie passes Darcy...');
+                await users.charlie.user.pass(users.darcy.did!);
+            },
+            after: async () => {
+                await users.charlie.user.discover();
             },
         },
         {

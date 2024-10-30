@@ -137,57 +137,57 @@ class BotGraphVisualizer extends Bot {
               <body>
               <div id="cy">
               </div>
-              <script type="module">
-              import cytoscape from "https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.29.2/cytoscape.esm.min.mjs";
-                var cy = cytoscape({
-                  container: document.getElementById('cy'),
-                  elements: ${graphStr},
-                  layout: {
-                    name: 'cose',
-                    ready: function(){},
-                    stop: function(){},
-                    animate: true,
-                    animationEasing: undefined,
-                    animationDuration: undefined,
-                    animateFilter: function ( node, i ){ return true; },
-                    animationThreshold: 250,
-                    refresh: 20,
-                    fit: true,
-                    padding: 30,
-                    boundingBox: undefined,
-                    nodeDimensionsIncludeLabels: false,
-                    randomize: false,
-                    componentSpacing: 40,
-                    nodeRepulsion: function( node ){ return 2048; },
-                    nodeOverlap: 4,
-                    idealEdgeLength: function( edge ){ return 32; },
-                    edgeElasticity: function( edge ){ return 32; },
-                    nestingFactor: 1.2,
-                    gravity: 1,
-                    numIter: 1000,
-                    initialTemp: 1000,
-                    coolingFactor: 0.99,
-                    minTemp: 1.0
-                  },
-                  style: [
-                    {
-                        selector: 'node',
-                        style: {
-                            label: 'data(short)',
+              <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.3/cytoscape.min.js"></script>
+              <script>
+                var cy = window.cy = cytoscape({
+                    container: document.getElementById('cy'),
+                    layout: {
+                        name: 'cose',
+                        idealEdgeLength: function (edge) {
+                            // Default is: 10
+                            // Instead, base it on "weight"
+                            return edge.data().weight * 2
                         },
-                    },
-                    {
-                        selector: 'edge',
-                        style: {
-                            'width': 3,
-                            'line-color': '#ccc',
-                            'target-arrow-color': '#ccc',
-                            'target-arrow-shape': 'triangle',
-                            'curve-style': 'bezier'
+                        edgeElasticity: function (edge) {
+                            // Default is: 100
+                            // Instead, base it on "weight"
+                            return edge.data().weight * 10
                         },
+                        nodeOverlap: 20,
+                        refresh: 20,
+                        fit: true,
+                        padding: 30,
+                        randomize: false,
+                        componentSpacing: 100,
+                        nodeRepulsion: 400000,
+                        nestingFactor: 5,
+                        gravity: 80,
+                        numIter: 1000,
+                        initialTemp: 200,
+                        coolingFactor: 0.95,
+                        minTemp: 1.0
                     },
-                ],
-            });
+                    elements: ${graphStr},
+                    style: [
+                        {
+                            selector: 'node',
+                            style: {
+                                label: 'data(id)',
+                            },
+                        },
+                        {
+                            selector: 'edge',
+                            style: {
+                                'label': 'data(weight)',
+                                'width': 3,
+                                'line-color': '#ccc',
+                                'target-arrow-color': '#ccc',
+                                'target-arrow-shape': 'triangle',
+                                'curve-style': 'bezier'
+                            },
+                        }
+                    ],
+                });
                 </script>
               </body>
           `);

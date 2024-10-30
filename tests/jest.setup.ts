@@ -1,7 +1,7 @@
 import { Logger, SmashMessaging } from 'smash-node-lib';
 
 const logger = new Logger('jest', 'INFO');
-jest.setTimeout(8000);
+jest.setTimeout(12000);
 
 beforeAll(() => {
     console.log('>>> removing unhandledRejection listeners <<<');

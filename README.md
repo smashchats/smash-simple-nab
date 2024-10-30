@@ -19,8 +19,8 @@ Neighborhoods are communities where people connect, interact, and build trust wi
 -   [-] Document this README.md
 -   [x] 1:1 chats text-based
 -   [x] SME for sync chat scenarios
--   [ ] Smash/Pass actions
--   [ ] Simple neighborhood profile discovery (no online, no tags...)
+-   [x] Smash/Pass actions
+-   [-] Simple neighborhood profile discovery (no online, no tags...)
 -   [ ] Basic user profile (title, description, picture)—No privacy levels
 -   [ ] SME for async chat scenarios
 -   [ ] 1:1 chats private pics
@@ -28,10 +28,18 @@ Neighborhoods are communities where people connect, interact, and build trust wi
 -   [ ] Mobile app: JOIN (QR code)
 -   [ ] Mobile app: browse profiles (simple)
 -   [ ] Trust DID (endorse)
+-   [ ] Block other user
 -   [ ] Mobile app: show profile endorsements with Smashed
--   [ ] NAB: kinkverse.org (handle)
+-   [-] NAB: kinkverse.org (handle)
 -   [ ] Compose Neighborhood deployment
 -   [ ] Compose Neighborhood tests
+-   [ ] Implement report and feedback (request screenshots)
+
+### NOTES
+
+-   Messaging reliability
+-   Account for the timestamp when handling smash/pass
+-   Authorize Smashing ghost users (unordered actions)
 
 ## Key Features of this NAB
 
