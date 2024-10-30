@@ -27,13 +27,13 @@ Neighborhoods are communities where people connect, interact, and build trust wi
 -   [ ] Mobile app: onboarding (concepts & guide)
 -   [ ] Mobile app: JOIN (QR code)
 -   [ ] Mobile app: browse profiles (simple)
--   [ ] Trust DID (endorse)
--   [ ] Block other user
--   [ ] Mobile app: show profile endorsements with Smashed
+-   [ ] Block other user (pass from NAB PoV + local config)
 -   [-] NAB: kinkverse.org (handle)
 -   [ ] Compose Neighborhood deployment
 -   [ ] Compose Neighborhood tests
 -   [ ] Implement report and feedback (request screenshots)
+-   [ ] Trust DID (endorse)
+-   [ ] Mobile app: show profile endorsements with Smashed
 
 ### NOTES
 
