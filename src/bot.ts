@@ -1,37 +1,34 @@
-import cytoscape from 'cytoscape';
 import 'dotenv/config';
 import {
     ActionData,
     Identity,
     Logger,
+    ProfileListSmashMessage,
     SMEConfig,
     SMEConfigJSONWithoutDefaults,
     SmashDID,
     SmashNAB,
+    SmashProfile,
 } from 'smash-node-lib';
+import SocialGraph from './graph.js';
 
-export const last4 = (str: string) =>
-    str.substring(str.length - 6, str.length - 2);
-
-const DEFAULT_EDGE_WEIGHT = 20;
-const SMASH_EDGE_WEIGHT = 100;
+export const last4 = (str: string) => str.substring(str.length - 6, str.length - 2);
+export type UserID = ReturnType<typeof last4>;
 
 export class Bot {
     public readonly nab: SmashNAB;
-    public readonly users: {
-        did: SmashDID;
-        score: number;
-        node: cytoscape.CollectionReturnValue;
-    }[];
+    public readonly profiles: Record<UserID, SmashProfile> = {};
+    protected graph: SocialGraph;
+    private logger: Logger;
 
-    protected graph: cytoscape.Core;
-    protected logger: Logger;
-
-    constructor(identity: Identity, name: string = 'NAB') {
-        this.graph = cytoscape();
-        this.nab = new SmashNAB(identity, 'INFO', name);
-        this.users = [];
-        this.logger = new Logger(name);
+    constructor(
+        identity: Identity,
+        name: string = 'NAB',
+        logLevel = 'DEBUG' as const,
+    ) {
+        this.nab = new SmashNAB(identity, 'the NAB', 'INFO', name);
+        this.logger = new Logger(name, logLevel);
+        this.graph = new SocialGraph(this.logger);
     }
 
     public async initEndpoints(smes: SMEConfig[]) {
@@ -45,27 +42,14 @@ export class Bot {
         this.logger.info(JSON.stringify(joinInfo));
     }
 
-    private exportUsers() {
-        return this.users.map((user) => ({ ...user, node: undefined }));
-    }
-
+    // TODO support multiple distances/scores
     private async sendUsersToSession(did: SmashDID) {
         await this.nab.sendMessage(did, {
             type: 'profiles',
-            data: this.exportUsers(),
-        });
-    }
-
-    private async refreshGraphScores() {
-        this.logger.debug(
-            `notifying ${this.users.length} users of the updated graph.`,
-        );
-        // NOTE: pagerank does not account for the edge weight
-        const pageRank = this.graph.elements().pageRank({});
-        for (const user of this.users) user.score = pageRank.rank(user.node);
-        // for (const user of this.users) {
-        //     await this.sendUsersToSession(user.did);
-        // }
+            data: this.graph.getScores().map(node => ({
+                ...this.profiles[node.id], scores: { score: node.score },
+            })),
+        } as ProfileListSmashMessage);
     }
 
     public async start() {
@@ -80,6 +64,7 @@ export class Bot {
         this.nab.on('join', this.handleJoinEvent.bind(this));
         this.nab.on('discover', this.handleDiscoverEvent.bind(this));
         this.nab.on('action', this.handleActionEvent.bind(this));
+        this.nab.on('profile', this.handleActionEvent.bind(this));
     }
 
     private async handleDiscoverEvent(did: SmashDID) {
@@ -87,84 +72,58 @@ export class Bot {
         await this.sendUsersToSession(did);
     }
 
+    // TODO: handle ghosts
     private async handleJoinEvent(did: SmashDID) {
         this.logger.debug(`> ${last4(did.ik)} joined`);
-        const node = this.graph.add({
-            group: 'nodes',
-            data: { id: last4(did.ik) },
-        });
-        this.users.push({ did: did, score: 0, node });
-        // Add default edges from new user to all existing users
-        for (const existingUser of this.users) {
-            if (existingUser.did.ik !== did.ik) {
-                this.addEdge(did, existingUser.did);
-                this.addEdge(existingUser.did, did);
-            }
-        }
-        this.logger.debug(`User ${did.ik} added to the graph.`);
-        await this.refreshGraphScores();
-        // await this.sendUsersToSession(did);
+        // TODO: await profile discovery in order to appear on the visible graph (?)
+        this.profiles[last4(did.ik)] = { title: '', did };
+        this.graph.getOrCreate(last4(did.ik));
     }
 
     private async handleActionEvent(sender: SmashDID, action: ActionData) {
+        if (sender.ik === action.target.ik)
+            return this.logger.info(`> ignoring self ${action.action} from ${last4(sender.ik)}`);
         this.logger.debug(
-            `${last4(sender.ik)} --> ${action.action} --> ${last4(action.target.ik)}`,
+            `> ${last4(sender.ik)} --> ${action.action} --> ${last4(action.target.ik)}`,
         );
-        if (action.action === 'smash') {
-            this.smash(sender, action.target);
-        } else if (action.action === 'pass') {
-            this.pass(sender, action.target);
-        } else if (action.action === 'clear') {
-            this.pass(sender, action.target);
-            this.addEdge(sender, action.target);
+        switch (action.action) {
+            case 'smash':
+                this.smash(sender, action.target);
+                break;
+            case 'pass':
+            case 'block':
+                this.pass(sender, action.target);
+                break;
+            case 'clear':
+                this.clear(sender, action.target);
+                break;
+            default:
+                this.logger.warn(`unknown action! (${action.action} from ${last4(sender.ik)})`)
         }
-        await this.refreshGraphScores();
     }
 
     private pass(sender: SmashDID, target: SmashDID) {
-        const existingEdges = this.getEdges(sender, target);
-        existingEdges.forEach((edge) => {
-            edge.remove();
-        });
+        this.graph.disconnectDirected(
+            last4(sender.ik),
+            last4(target.ik),
+        );
     }
 
     private smash(sender: SmashDID, target: SmashDID) {
-        const existingEdges = this.getEdges(sender, target);
-        if (existingEdges.length >= 2) {
-            this.logger.info(
-                `${existingEdges.length} edges found between ${last4(sender.ik)} and ${last4(target.ik)}`,
-            );
-            return;
-        }
-        if (existingEdges.length === 0) {
-            this.addEdge(sender, target);
-        }
-        this.addEdge(sender, target, SMASH_EDGE_WEIGHT);
+        this.graph.connectDirected(
+            last4(sender.ik),
+            last4(target.ik),
+        );
     }
 
-    private getEdges(sender: SmashDID, target: SmashDID) {
-        return this.graph
-            .edges()
-            .filter(
-                (edge) =>
-                    edge.data('source') === last4(sender.ik) &&
-                    edge.data('target') === last4(target.ik),
-            );
+    private clear(sender: SmashDID, target: SmashDID) {
+        this.graph.resetEdges(
+            last4(sender.ik),
+            last4(target.ik),
+        );
     }
 
-    private addEdge(
-        sender: SmashDID,
-        target: SmashDID,
-        weight: number = DEFAULT_EDGE_WEIGHT,
-    ) {
-        // existingEdges[0].data('weight', weight);
-        this.graph.add({
-            group: 'edges',
-            data: {
-                source: last4(sender.ik),
-                target: last4(target.ik),
-                weight,
-            },
-        });
-    }
+    // TODO: expire after Xmn (offline unless refreshed)
+    // private updateProfile(id: UserID, profile: SmashProfile) {}
+
 }

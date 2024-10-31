@@ -4,6 +4,7 @@ import {
     SmashActionJson,
     SmashDID,
     SmashMessaging,
+    SmashProfile,
     SmashUser,
 } from 'smash-node-lib';
 
@@ -59,11 +60,12 @@ describe('NAB integration testing', () => {
     it('a new user can join the neighborhood', async () => {
         const user = new SmashUser(
             await SmashMessaging.generateIdentity(),
+            '',
             'INFO',
             'User',
         );
         await userJoin(user);
-        expect(bot!.users.length).toBe(1);
+        expect(Object.values(bot!.profiles).length).toBe(1);
         await user.close();
     });
 
@@ -90,35 +92,39 @@ describe('NAB integration testing', () => {
                 alice.once('nbh_profiles', async (_, profiles) =>
                     resolve(profiles),
                 ),
-            ) as Promise<{ did: SmashDID; score: number }[]>;
+            ) as Promise<SmashProfile[]>;
             await alice.discover();
             const profiles = await waitForDiscover;
+            const findProfile = (did: SmashDID) => profiles.find((p) => p.did.ik === did.ik)?.scores?.score;
             return {
-                bob: profiles.find((p) => p.did.ik === bobDid.ik)?.score,
-                charlie: profiles.find((p) => p.did.ik === charlieDid.ik)
-                    ?.score,
-                darcy: profiles.find((p) => p.did.ik === darcyDid.ik)?.score,
+                bob: findProfile(bobDid),
+                charlie: findProfile(charlieDid),
+                darcy: findProfile(darcyDid),
             };
         };
 
         beforeEach(async () => {
             alice = new SmashUser(
                 await SmashMessaging.generateIdentity(),
+                '',
                 'DEBUG',
                 'Alice',
             );
             bob = new SmashUser(
                 await SmashMessaging.generateIdentity(),
+                '',
                 'DEBUG',
                 'Bob',
             );
             charlie = new SmashUser(
                 await SmashMessaging.generateIdentity(),
+                '',
                 'DEBUG',
                 'Charlie',
             );
             darcy = new SmashUser(
                 await SmashMessaging.generateIdentity(),
+                '',
                 'DEBUG',
                 'Darcy',
             );
@@ -143,7 +149,7 @@ describe('NAB integration testing', () => {
         });
 
         it('can join', async () => {
-            expect(bot!.users.length).toBe(NB_USERS);
+            expect(Object.values(bot!.profiles).length).toBe(NB_USERS);
         });
 
         it('can discover each others through the NAB', () => {

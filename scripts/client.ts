@@ -4,6 +4,7 @@ import {
     SmashActionJson,
     SmashDID,
     SmashMessaging,
+    SmashProfile,
     SmashUser,
 } from 'smash-node-lib';
 
@@ -18,7 +19,6 @@ let user: SmashUser;
 let nabDid: SmashDID;
 
 SmashMessaging.setCrypto(crypto);
-type Profile = { did: SmashDID; score: number };
 const DICT: Record<string, string> = {};
 
 const printDID = (did: SmashDID) => {
@@ -29,16 +29,16 @@ const printDID = (did: SmashDID) => {
 const getDID = (key: string) => DICT[key] || key;
 
 const addDiscoverListener = (user: SmashUser, callback?: () => void) => {
-    user.once('nbh_profiles', async (sender, profiles: Profile[]) => {
+    user.once('nbh_profiles', async (sender, profiles: SmashProfile[]) => {
         console.log(
             '\n\n',
             `Discovered profiles (${printDID(sender)}):`,
             ...(await Promise.all(
                 profiles
-                    .toSorted((a, b) => b.score - a.score)
+                    .toSorted((a, b) => b.scores!.score ?? 0 - a.scores!.score ?? 0)
                     .map(
                         async (profile, index) =>
-                            `\n${index + 1}. (${Math.round(profile.score * 100)}) ${printDID(profile.did)}`,
+                            `\n${index + 1}. (${Math.round(profile.scores!.score * 100)}) ${printDID(profile.did)} (${profile.title})`,
                     ),
             )),
             '\n',
@@ -49,7 +49,7 @@ const addDiscoverListener = (user: SmashUser, callback?: () => void) => {
 
 async function createUser(): Promise<SmashUser> {
     const identity = await SmashMessaging.generateIdentity();
-    const user = new SmashUser(identity, 'INFO');
+    const user = new SmashUser(identity, '', 'INFO');
     user.on('message', (message) => {
         console.info('\n\nReceived message:', JSON.stringify(message, null, 2));
     });
@@ -68,6 +68,7 @@ async function joinNeighborhood(): Promise<void> {
             );
         } catch (error) {
             console.error('Error joining neighborhood:', error);
+        } finally {
             displayMenu();
         }
     });
