@@ -21,25 +21,115 @@ Neighborhoods are communities where people connect, interact, and build trust wi
 -   [x] SME for sync chat scenarios
 -   [x] Smash/Pass actions
 -   [-] Simple neighborhood profile discovery (no online, no tags...)
+-   [ ] Block other user (pass from NAB PoV + local config)
 -   [ ] Basic user profile (title, description, picture)—No privacy levels
 -   [ ] SME for async chat scenarios
 -   [ ] 1:1 chats private pics
 -   [ ] Mobile app: onboarding (concepts & guide)
 -   [ ] Mobile app: JOIN (QR code)
 -   [ ] Mobile app: browse profiles (simple)
--   [ ] Block other user (pass from NAB PoV + local config)
 -   [-] NAB: kinkverse.org (handle)
 -   [ ] Compose Neighborhood deployment
 -   [ ] Compose Neighborhood tests
 -   [ ] Implement report and feedback (request screenshots)
--   [ ] Trust DID (endorse)
+-   [ ] Trust DID (profile endorsement)
 -   [ ] Mobile app: show profile endorsements with Smashed
+-   [ ] BUG Messaging reliability
+-   [ ] BUG Account for the timestamp when handling smash/pass
+-   [ ] BUG Authorize Smashing ghost users (unordered actions)
+-   [ ] ADD TESTS for crypto errors and general failure scenarios
 
-### NOTES
+--> READY TO SHARE WITH POTENTIAL CONTRIBUTORS (play with friends, private alpha)
 
--   Messaging reliability
--   Account for the timestamp when handling smash/pass
--   Authorize Smashing ghost users (unordered actions)
+## Next goals
+
+- [ ] Pinned chats & Inbox & Message requests (spams)
+- [ ] Trust DID = endorsement + add as favorite
+- [ ] App: favorites notes & emoji-based filters
+- [ ] App: send to (lists)——1:1*N chats: send to multiple users (+circles)
+- [ ] (Maintenance) Iterate Smash application UX, parameters and onboarding
+- [ ] Feedback
+- [ ] Badges
+- [ ] Badge Endorsement & Showcase
+- [ ] Web of trust: compute, display, propagate
+- [ ] Welcome open source contributions to Kinkverse/Smashchats
+- [ ] Kinkverse: city badge for location & distance
+- [ ] Kinkverse: study and experiment with graph algorithms
+- [ ] Kinkverse: onboarding v0
+- [ ] Privacy levels for content sharing (profile attributes)
+- [ ] Mobile notifications
+- [ ] Heartbeat / Online status
+- [ ] Join multiple NBHs in parralel
+- [ ] Feedback
+- [ ] Sharing videos (snapchat-like)
+- [ ] Peer to Peer (P2P, wRTC)
+- [ ] (Maintenance) Iterate Smash application UX, parameters and onboarding
+- [ ] Safety features: report users etc.
+- [ ] Backup and Restore
+- [ ] Save content to local (message, media, etc)
+- [ ] Expire all content after 7 days (unless saved!)
+- [ ] Login with Smash (eg for onboarding)
+- [ ] Location & Live location sharing
+- [ ] Feedback
+- [ ] (Maintenance) Efficiency/Performance review
+- [ ] PLC & resolution
+- [ ] PLC contribution to AT Proto (broadcast/WoT-alike)
+- [ ] Handle provider error messages (eg, not enough credits)
+- [ ] DNS & resolution
+- [ ] Usernames/Handles
+- [ ] Feedback
+- [ ] Kinkverse handle extensions (.users.kinkverse.org; .kinkhub.app; .mykinks.com; etc)
+- [ ] Kinkverse public profile link & linktree
+- [ ] Kinkverse relationship badges & profile display
+- [ ] Kinkverse public profile links: join!
+- [ ] Kinkverse public profile links: compute compatibility
+- [ ] Kinkverse: improve graph algorithms
+- [ ] Feedback
+- [ ] Kinkverse: live/fixed location for distance computing 
+- [ ] Kinkverse: private beta + premium subscriptions
+- [ ] Multiple identities
+- [ ] Media gallery
+- [ ] (Maintenance) Iterate Smash application UX, parameters and onboarding
+- [ ] Stories / Streams / Circles
+- [ ] Feedback
+- [ ] Badges claiming flow (eg, to showcase Darklands attending or others)
+- [ ] Smashfans: paid badges & renewal
+- [ ] Smashfans: cohort and per-cohort metrics
+- [ ] Smash fund: per-neighorbhood token-based crowdfunding
+- [ ] Feedback
+- [ ] 1:N chats: groups
+- [ ] Support multiple devices for the same account
+- [ ] Backup and Restore v2
+- [ ] CDN/IPFS for static content sharing
+- [ ] (Maintenance) Iterate Smash application UX, parameters and onboarding
+- [ ] (Maintenance) Efficiency/Performance review
+- [ ] Kinkverse onboarding v1
+- [ ] Kinkverse onboarding v2
+- [ ] Kinkvatar
+- [ ] Feedback
+- [ ] Welcome open source contributions (general, better community & process)
+- [ ] Kinkverse: LIVE/GA
+- [ ] dev.smashchats.com NBH
+- [ ] Smashchats.com NBH
+- [ ] Spin up other NBHs & partnerships: teamlocked, sniffies, theGrid, verified.com, smashfans...
+- [ ] 1:1 live calls (audio and video)
+- [ ] 1:N live calls (audio and video)
+- [ ] Feedback
+- [ ] stream (1:N, open to circles) live calls (audio and video)
+- [ ] AT proto integration for public discourse?
+- [ ] AT-proto based Reddit like interaface (?)
+- [ ] Wallet: NFT, coins/tokens, and transfer money
+- [ ] Produce SBFH content featuring Smashchats (for play and hookups)
+- [ ] Safety features
+- [ ] Feedback
+- [ ] Wallet: Paid providers & tokenization & ISPs-like
+- [ ] Creator coins
+- [ ] NBH TM/DNS-based coins & NBH crowdfunding
+- [ ] ISP 3.0 vision—what's next?
+- [ ] Protected features (akin to DRM): require app key—eg for expiring messages etc
+- [ ] Native apps?
+- [ ] 
+
 
 ## Key Features of this NAB
 
