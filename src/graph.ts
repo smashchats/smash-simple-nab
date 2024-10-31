@@ -76,7 +76,6 @@ export default class SocialGraph {
         )).concat(this.graph.nodes().map(node => (
             SocialGraph.edgeData(node.id(), id)
         )));
-        this.logger.debug(JSON.stringify(edges, null, 2));
         const node = this.graph.add({
             group: 'nodes',
             data: { id },

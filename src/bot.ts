@@ -15,6 +15,8 @@ import SocialGraph from './graph.js';
 export const last4 = (str: string) => str.substring(str.length - 6, str.length - 2);
 export type UserID = ReturnType<typeof last4>;
 
+// TODO persist (file?): signal sessions, users graph (state), 
+// TODO handle session restart when invalid data (eg, lost context, refreshed keys)
 export class Bot {
     public readonly nab: SmashNAB;
     public readonly profiles: Record<UserID, SmashProfile> = {};
