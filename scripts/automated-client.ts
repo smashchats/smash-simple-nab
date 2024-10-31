@@ -39,7 +39,7 @@ const printDID = (did: SmashDID) => {
 
 async function createTestUser(name: string): Promise<TestUser> {
     const identity = await SmashMessaging.generateIdentity();
-    const user = new SmashUser(identity, '', 'INFO', name);
+    const user = new SmashUser(identity, undefined, 'INFO', name);
     const did = await user.getDID();
     user.on(
         'nbh_profiles',

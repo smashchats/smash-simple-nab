@@ -38,7 +38,7 @@ const addDiscoverListener = (user: SmashUser, callback?: () => void) => {
                     .toSorted((a, b) => b.scores!.score ?? 0 - a.scores!.score ?? 0)
                     .map(
                         async (profile, index) =>
-                            `\n${index + 1}. (${Math.round(profile.scores!.score * 100)}) ${printDID(profile.did)} (${profile.title})`,
+                            `\n${index + 1}. (${Math.round(profile.scores!.score * 100)}) ${printDID(profile.did)} (${profile.meta?.title})`,
                     ),
             )),
             '\n',
@@ -49,7 +49,7 @@ const addDiscoverListener = (user: SmashUser, callback?: () => void) => {
 
 async function createUser(): Promise<SmashUser> {
     const identity = await SmashMessaging.generateIdentity();
-    const user = new SmashUser(identity, '', 'INFO');
+    const user = new SmashUser(identity, undefined, 'INFO');
     user.on('message', (message) => {
         console.info('\n\nReceived message:', JSON.stringify(message, null, 2));
     });
@@ -120,7 +120,8 @@ function displayMenu(): void {
     console.log('4. Pass');
     console.log('5. Clear');
     console.log('6. Show ID');
-    console.log('7. Exit');
+    console.log('7. Update profile');
+    console.log('8. Exit');
     rl.question('Select an option: ', handleMenuChoice);
 }
 
@@ -150,6 +151,19 @@ async function handleMenuChoice(choice: string): Promise<void> {
                 });
             break;
         case '7':
+            rl.question(
+                `Set title: `,
+                async (title) => {
+                    await user.updateMeta({
+                        title,
+                        description: '',
+                        picture: '',
+                    });
+                    setTimeout(displayMenu, 1000);
+                },
+            );
+            break;
+        case '8':
             console.log('Exiting...');
             rl.close();
             return;

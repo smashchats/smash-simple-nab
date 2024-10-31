@@ -26,9 +26,10 @@ export class Bot {
         name: string = 'NAB',
         logLevel = 'DEBUG' as const,
     ) {
-        this.nab = new SmashNAB(identity, 'the NAB', 'INFO', name);
+        this.nab = new SmashNAB(identity, undefined, 'INFO', name);
         this.logger = new Logger(name, logLevel);
         this.graph = new SocialGraph(this.logger);
+        // TODO add itself to the graph??
     }
 
     public async initEndpoints(smes: SMEConfig[]) {
@@ -64,7 +65,13 @@ export class Bot {
         this.nab.on('join', this.handleJoinEvent.bind(this));
         this.nab.on('discover', this.handleDiscoverEvent.bind(this));
         this.nab.on('action', this.handleActionEvent.bind(this));
-        this.nab.on('profile', this.handleActionEvent.bind(this));
+        this.nab.on('profile', this.handleProfileEvent.bind(this));
+    }
+
+    private handleProfileEvent(sender: SmashDID, profile: SmashProfile) {
+        // TODO: expire after Xmn (offline unless refreshed)
+        this.logger.debug(`> updating ${last4(sender.ik)} profile`);
+        this.profiles[last4(sender.ik)] = profile;
     }
 
     private async handleDiscoverEvent(did: SmashDID) {
@@ -72,11 +79,10 @@ export class Bot {
         await this.sendUsersToSession(did);
     }
 
-    // TODO: handle ghosts
     private async handleJoinEvent(did: SmashDID) {
         this.logger.debug(`> ${last4(did.ik)} joined`);
         // TODO: await profile discovery in order to appear on the visible graph (?)
-        this.profiles[last4(did.ik)] = { title: '', did };
+        this.profiles[last4(did.ik)] = { did };
         this.graph.getOrCreate(last4(did.ik));
     }
 
@@ -122,8 +128,5 @@ export class Bot {
             last4(target.ik),
         );
     }
-
-    // TODO: expire after Xmn (offline unless refreshed)
-    // private updateProfile(id: UserID, profile: SmashProfile) {}
 
 }

@@ -20,7 +20,7 @@ Neighborhoods are communities where people connect, interact, and build trust wi
 -   [x] 1:1 chats text-based
 -   [x] SME for sync chat scenarios
 -   [x] Smash/Pass actions
--   [-] Simple neighborhood profile discovery (no online, no tags...)
+-   [x] Simple neighborhood profile discovery (no online, no tags...)—cache online public profiles
 -   [ ] Block other user (pass from NAB PoV + local config)
 -   [ ] Basic user profile (title, description, picture)—No privacy levels
 -   [ ] SME for async chat scenarios

@@ -60,7 +60,7 @@ describe('NAB integration testing', () => {
     it('a new user can join the neighborhood', async () => {
         const user = new SmashUser(
             await SmashMessaging.generateIdentity(),
-            '',
+            undefined,
             'INFO',
             'User',
         );
@@ -106,25 +106,25 @@ describe('NAB integration testing', () => {
         beforeEach(async () => {
             alice = new SmashUser(
                 await SmashMessaging.generateIdentity(),
-                '',
+                undefined,
                 'DEBUG',
                 'Alice',
             );
             bob = new SmashUser(
                 await SmashMessaging.generateIdentity(),
-                '',
+                undefined,
                 'DEBUG',
                 'Bob',
             );
             charlie = new SmashUser(
                 await SmashMessaging.generateIdentity(),
-                '',
+                undefined,
                 'DEBUG',
                 'Charlie',
             );
             darcy = new SmashUser(
                 await SmashMessaging.generateIdentity(),
-                '',
+                undefined,
                 'DEBUG',
                 'Darcy',
             );
