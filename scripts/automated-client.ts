@@ -4,6 +4,7 @@ import {
     SmashActionJson,
     SmashDID,
     SmashMessaging,
+    SmashProfile,
     SmashUser,
 } from 'smash-node-lib';
 
@@ -40,18 +41,19 @@ const printDID = (did: SmashDID) => {
 async function createTestUser(name: string): Promise<TestUser> {
     const identity = await SmashMessaging.generateIdentity();
     const user = new SmashUser(identity, undefined, 'INFO', name);
+    await user.updateMeta({ title: name, description: '', picture: '' });
     const did = await user.getDID();
     user.on(
         'nbh_profiles',
-        async (sender, profiles: { did: SmashDID; score: number }[]) => {
+        async (sender, profiles: SmashProfile[]) => {
             console.log(
                 `\n${name} discovered profiles from ${printDID(sender)}:`,
                 ...(await Promise.all(
                     profiles
-                        .toSorted((a, b) => b.score - a.score)
+                        .toSorted((a, b) => b.scores!.score - a.scores!.score)
                         .map(
                             async (profile, index) =>
-                                `\n${index + 1}. (${Math.round(profile.score * 100)}) ${printDID(profile.did)}`,
+                                `\n${index + 1}. (${Math.round(profile.scores!.score * 100)}) ${printDID(profile.did)} (${profile.meta?.title})`,
                         ),
                 )),
                 '\n',
@@ -84,8 +86,7 @@ async function main() {
         console.log(`${name}: ${printDID(did!)}`);
     }
 
-    await waitForEnter();
-
+    console.log('\nRunning scripted scenario...');
     const scenario = [
         {
             name: 'All users join neighborhood',
@@ -179,7 +180,7 @@ async function main() {
     ];
 
     for (const step of scenario) {
-        console.log(`\nSTEP: ${step.name}`);
+        console.log(`\n\nSTEP: ${step.name}`);
         await waitForEnter();
         await step.action();
         if (step.after) {

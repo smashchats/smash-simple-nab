@@ -73,7 +73,7 @@ export class Bot {
     private handleProfileEvent(sender: SmashDID, profile: SmashProfile) {
         // TODO: expire after Xmn (offline unless refreshed)
         this.logger.debug(`> updating ${last4(sender.ik)} profile`);
-        this.profiles[last4(sender.ik)] = profile;
+        this.updateStoredProfile(last4(sender.ik), profile);
     }
 
     private async handleDiscoverEvent(did: SmashDID) {
@@ -84,7 +84,7 @@ export class Bot {
     private async handleJoinEvent(did: SmashDID) {
         this.logger.debug(`> ${last4(did.ik)} joined`);
         // TODO: await profile discovery in order to appear on the visible graph (?)
-        this.profiles[last4(did.ik)] = { did };
+        this.updateStoredProfile(last4(did.ik), { did });
         this.graph.getOrCreate(last4(did.ik));
     }
 
@@ -108,6 +108,10 @@ export class Bot {
             default:
                 this.logger.warn(`unknown action! (${action.action} from ${last4(sender.ik)})`)
         }
+    }
+
+    private updateStoredProfile(id: UserID, partialProfile: Partial<SmashProfile>) {
+        this.profiles[id] = { ...this.profiles[id], ...partialProfile };
     }
 
     private pass(sender: SmashDID, target: SmashDID) {

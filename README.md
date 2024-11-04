@@ -25,20 +25,22 @@ Neighborhoods are communities where people connect, interact, and build trust wi
 -   [-] Block other user (pass from NAB PoV + local config)
 -   [-] SME for async chat scenarios
 -   [ ] 1:1 chats private pics
+-   [ ] Trust DID (profile endorsement)
 -   [ ] Simple web client—restart work(?—anonymous browsing??)
--   [ ] Mobile app: onboarding (concepts & guide)
+-   [ ] Mobile app: onboarding (concepts & guide) (as a blog post?)
 -   [-] Mobile app: JOIN (QR code)
 -   [ ] Mobile app: browse profiles (simple)
+-   [ ] Mobile app: show profile endorsements with Smashed
 -   [-] NAB: kinkverse.org (handle)
+-   [ ] Local storage data persistence 
 -   [ ] Compose Neighborhood deployment
 -   [ ] Compose Neighborhood tests
 -   [ ] Implement report and feedback (request screenshots)
--   [ ] Trust DID (profile endorsement)
--   [ ] Mobile app: show profile endorsements with Smashed
 -   [?] BUG Messaging reliability
 -   [ ] BUG Account for the timestamp when handling smash/pass
 -   [x] BUG Authorize Smashing ghost users (unordered actions)
 -   [ ] ADD TESTS for crypto errors and general failure scenarios
+-   [ ] BUG handle sessions reset (when context has been lost on one end for example)
 
 --> READY TO SHARE WITH POTENTIAL CONTRIBUTORS (play with friends, private alpha)
 
