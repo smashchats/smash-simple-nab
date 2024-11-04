@@ -4,6 +4,7 @@ import {
     Identity,
     Logger,
     ProfileListSmashMessage,
+    Relationship,
     SMEConfig,
     SMEConfigJSONWithoutDefaults,
     SmashDID,
@@ -18,10 +19,16 @@ export type UserID = ReturnType<typeof last4>;
 // TODO persist (file?): signal sessions, users graph (state), 
 // TODO handle session restart when invalid data (eg, lost context, refreshed keys)
 export class Bot {
-    public readonly nab: SmashNAB;
-    public readonly profiles: Record<UserID, SmashProfile> = {};
-    protected graph: SocialGraph;
     private logger: Logger;
+
+    public readonly nab: SmashNAB;
+    protected graph: SocialGraph;
+
+    public readonly profiles: Record<UserID, SmashProfile> = {};
+    public readonly relationships: Record<UserID, Record<UserID, {
+        time: Date,
+        state: Relationship,
+    }>> = {};
 
     constructor(
         identity: Identity,
@@ -81,58 +88,46 @@ export class Bot {
         await this.sendUsersToSession(did);
     }
 
+    // TODO: await profile discovery in order to appear on the visible graph (?)
     private async handleJoinEvent(did: SmashDID) {
-        this.logger.debug(`> ${last4(did.ik)} joined`);
-        // TODO: await profile discovery in order to appear on the visible graph (?)
-        this.updateStoredProfile(last4(did.ik), { did });
-        this.graph.getOrCreate(last4(did.ik));
+        const id: UserID = last4(did.ik);
+        this.logger.debug(`> ${id} joined`);
+        this.relationships[id] = { ...this.relationships[id] };
+        this.updateStoredProfile(id, { did });
+        this.graph.getOrCreate(id);
     }
 
-    private async handleActionEvent(sender: SmashDID, action: ActionData) {
+    private async handleActionEvent(sender: SmashDID, action: ActionData, time: Date) {
+        const id = last4(sender.ik) as UserID;
+        const targetId = last4(action.target.ik) as UserID;
         if (sender.ik === action.target.ik)
-            return this.logger.info(`> ignoring self ${action.action} from ${last4(sender.ik)}`);
+            return this.logger.info(`> ignoring self ${action.action} from ${id}`);
         this.logger.debug(
-            `> ${last4(sender.ik)} --> ${action.action} --> ${last4(action.target.ik)}`,
+            `> ${id} --> ${action.action} --> ${last4(action.target.ik)} (${time.toLocaleTimeString()})`,
         );
+        const currentState = this.relationships[id][last4(action.target.ik)];
+        if (currentState && currentState.time > time)
+            return this.logger.debug(`current state (${currentState.state}) is newer (${currentState.time.toLocaleString()})`);
+        else
+            this.relationships[id][last4(action.target.ik)] = { state: action.action, time };
         switch (action.action) {
             case 'smash':
-                this.smash(sender, action.target);
+                this.graph.connectDirected(id, targetId);
                 break;
             case 'pass':
             case 'block':
-                this.pass(sender, action.target);
+                this.graph.disconnectDirected(id, targetId);
                 break;
             case 'clear':
-                this.clear(sender, action.target);
+                this.graph.resetEdges(id, targetId);
                 break;
             default:
-                this.logger.warn(`unknown action! (${action.action} from ${last4(sender.ik)})`)
+                this.logger.warn(`unknown action! (${action.action} from ${id})`)
         }
     }
 
     private updateStoredProfile(id: UserID, partialProfile: Partial<SmashProfile>) {
         this.profiles[id] = { ...this.profiles[id], ...partialProfile };
-    }
-
-    private pass(sender: SmashDID, target: SmashDID) {
-        this.graph.disconnectDirected(
-            last4(sender.ik),
-            last4(target.ik),
-        );
-    }
-
-    private smash(sender: SmashDID, target: SmashDID) {
-        this.graph.connectDirected(
-            last4(sender.ik),
-            last4(target.ik),
-        );
-    }
-
-    private clear(sender: SmashDID, target: SmashDID) {
-        this.graph.resetEdges(
-            last4(sender.ik),
-            last4(target.ik),
-        );
     }
 
 }

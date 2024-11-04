@@ -37,7 +37,7 @@ Neighborhoods are communities where people connect, interact, and build trust wi
 -   [ ] Compose Neighborhood tests
 -   [ ] Implement report and feedback (request screenshots)
 -   [?] BUG Messaging reliability
--   [ ] BUG Account for the timestamp when handling smash/pass
+-   [x] BUG Account for the timestamp when handling smash/pass
 -   [x] BUG Authorize Smashing ghost users (unordered actions)
 -   [ ] ADD TESTS for crypto errors and general failure scenarios
 -   [ ] BUG handle sessions reset (when context has been lost on one end for example)
