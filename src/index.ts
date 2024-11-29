@@ -35,10 +35,10 @@ const checkEnvironmentVariables = (requiredVars: string[]): boolean => {
 
 const retrieveKeysFromStorage = async (
     c: CryptoP11,
-    keys: CryptoKeyPair & { thumbprint: string },
+    keys: CryptoKeyPair & { thumbprint?: string },
     keysMapping: Map<string, string>,
 ) => {
-    const storedId = keysMapping.get(keys.thumbprint);
+    const storedId = keysMapping.get(keys.thumbprint!);
     console.info('retrieving keys from storage', keys.thumbprint, storedId);
 
     if (!storedId) {
@@ -86,9 +86,9 @@ const loadIdentityFromFile = (
             const c = new CryptoP11(hsmConfig);
             SmashMessaging.setCrypto(c as unknown as Crypto);
 
-            const identity = await SmashMessaging.parseIdentityJson(
+            const identity = await SmashMessaging.deserializeIdentity(
                 hsmIdentity.identity,
-                async (keys: CryptoKeyPair & { thumbprint: string }) =>
+                async (keys: CryptoKeyPair & { thumbprint?: string }) =>
                     retrieveKeysFromStorage(c, keys, keysMapping),
             );
 
