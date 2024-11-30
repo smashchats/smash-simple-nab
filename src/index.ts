@@ -200,8 +200,12 @@ class BotGraphVisualizer extends Bot {
 }
 
 loadIdentityFromFile(HSM_CONFIG, process.env.NAB_ID_FILEPATH!).then(
-    (identity) => {
+    async (identity) => {
         const bot = new BotGraphVisualizer(identity);
-        bot.initEndpoints([SME_CONFIG]).then(() => bot.start());
+        process.on('unhandledRejection', (reason, promise) => {
+            SmashMessaging.handleError(reason, promise, bot.logger);
+        });
+        await bot.initEndpoints([SME_CONFIG]);
+        return await bot.start();
     },
 );

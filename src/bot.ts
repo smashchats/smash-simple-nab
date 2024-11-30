@@ -21,7 +21,7 @@ export type UserID = ReturnType<typeof last4>;
 // TODO persist (file?): signal sessions, users graph (state),
 // TODO handle session restart when invalid data (eg, lost context, refreshed keys)
 export class Bot {
-    private logger: Logger;
+    public readonly logger: Logger;
 
     public readonly nab: SmashNAB;
     protected graph: SocialGraph;
