@@ -1,2 +1,1 @@
-npm run prettier-format
-npm run build
+npm run build:checks

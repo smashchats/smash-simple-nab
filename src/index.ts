@@ -3,6 +3,7 @@ import express, { Response } from 'express';
 import * as fs from 'fs';
 import { ObjectClass } from 'graphene-pk11';
 import http from 'http';
+import { CryptoParams } from 'node-webcrypto-p11';
 import {
     ECPublicKey,
     Identity,
@@ -67,10 +68,10 @@ const retrieveKeysFromStorage = async (
 };
 
 const loadIdentityFromFile = (
-    hsmConfig: any,
+    hsmConfig: unknown,
     filepath: string,
 ): Promise<Identity> => {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         fs.readFile(filepath, 'utf8', async (error, data) => {
             if (error) return console.error(error);
 
@@ -83,7 +84,7 @@ const loadIdentityFromFile = (
                 hsmIdentity.map as Iterable<[string, string]>,
             );
 
-            const c = new CryptoP11(hsmConfig);
+            const c = new CryptoP11(hsmConfig as CryptoParams);
             SmashMessaging.setCrypto(c as unknown as Crypto);
 
             const identity = await SmashMessaging.deserializeIdentity(
@@ -125,7 +126,9 @@ class BotGraphVisualizer extends Bot {
         app.get('/', (_, res: Response) => {
             res.setHeader('Content-Type', 'text/html');
             const graphStr = JSON.stringify(
-                (this.graph.json() as any)['elements'],
+                (this.graph.json() as unknown as { elements: never[] })[
+                    'elements'
+                ],
             );
             res.send(`
               <style>

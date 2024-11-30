@@ -1,5 +1,5 @@
 #!/bin/node
-import { Identity, IdentityProtocol, setEngine } from '2key-ratchet';
+import { IdentityProtocol, setEngine } from '2key-ratchet';
 import { SmashMessaging } from '@src/index.js';
 
 async function main() {
@@ -11,7 +11,6 @@ async function main() {
     }
     // const NODE_PATH = process.argv[0];
     // const SCRIPT_PATH = process.argv[1];
-    const ID = parseInt(process.argv[2] || '0');
     const NB_PREKEYS = parseInt(process.argv[3] || '0');
     const NB_ONETIME = parseInt(process.argv[4] || '0');
     setEngine('@peculiar/webcrypto', crypto);

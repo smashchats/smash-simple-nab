@@ -3,14 +3,20 @@
     "version": "0.0.0-alpha",
     "description": "Smash Neighborhood Admin Bot Demo",
     "type": "module",
+    "main": "dist/src/index.js",
     "scripts": {
         "postinstall": "patch-package",
         "prepare": "husky",
-        "start": "nodemon --exec tsx --ignore './scripts/*' ./src/index.ts",
-        "test:w": "npm run test -- --watchAll",
+        "start": "node .",
+        "dev": "nodemon --exec tsx --ignore './scripts/*' ./src/index.ts",
         "test": "jest --config jest.config.cjs --coverage",
-        "build": "rm -rf dist/* && tsc && tsc-alias",
-        "prettier-format": "prettier --config .prettierrc 'src/**/*.ts' --write",
+        "test:w": "npm run test -- --watchAll",
+        "build": "rm -rf dist/* && tsc -p tsconfig.build.json && tsc-alias",
+        "build:checks": "npm run prettier:check && npm run build && npm run eslint-dist:check",
+        "eslint-dist:check": "eslint dist/**/*.js",
+        "prettier": "prettier --config .prettierrc 'src/**/*.ts'",
+        "prettier:check": "npm run prettier -- --check",
+        "prettier:format": "npm run prettier -- --write",
         "script/auto": "tsx ./scripts/automated-client.ts",
         "script/client": "tsx ./scripts/client.ts",
         "script/json": "tsx ./scripts/create-identity.ts",
@@ -18,8 +24,8 @@
         "script/sign": "tsx ./scripts/test-sign.ts",
         "create-id": "npm run --silent script/json 0 1 0 > ./out/identity-exported.json",
         "generate-id": "mkdir -p config && npm run --silent script/id 0 1 0 > ./config/identity.json",
-        "docker-build": "docker build . -t smash-nbh-bot",
-        "docker-test": "docker build . -t softhsmv2 && docker build . -f Dockerfile.test"
+        "docker:build": "docker build . -t smash-nbh-bot",
+        "docker:test": "docker build . -t softhsmv2 && docker build . -f Dockerfile.test"
     },
     "keywords": [],
     "author": "",
@@ -47,7 +53,7 @@
         "ts-jest": "^29.2.5",
         "tsc-alias": "^1.8.10",
         "tsx": "^4.19.1",
-        "typescript": "^5.4.5",
-        "typescript-eslint": "^8.3.0"
+        "typescript": "^5.6.2",
+        "typescript-eslint": "^8.16.0"
     }
 }

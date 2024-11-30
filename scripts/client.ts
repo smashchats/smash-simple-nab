@@ -35,7 +35,10 @@ const addDiscoverListener = (user: SmashUser, callback?: () => void) => {
             `Discovered profiles (${printDID(sender)}):`,
             ...(await Promise.all(
                 profiles
-                    .toSorted((a, b) => b.scores!.score ?? 0 - a.scores!.score ?? 0)
+                    .toSorted(
+                        (a, b) =>
+                            (b.scores?.score ?? 0) - (a.scores?.score ?? 0),
+                    )
                     .map(
                         async (profile, index) =>
                             `\n${index + 1}. (${Math.round(profile.scores!.score * 100)}) ${printDID(profile.did)} (${profile.meta?.title})`,
@@ -98,6 +101,7 @@ async function performAction(
         `Enter the DID (ik) of the target user to ${action}: `,
         async (targetIk) => {
             const targetDid: SmashDID = {
+                id: getDID(targetIk),
                 ik: getDID(targetIk),
                 ek: '',
                 signature: '',
@@ -151,17 +155,14 @@ async function handleMenuChoice(choice: string): Promise<void> {
                 });
             break;
         case '7':
-            rl.question(
-                `Set title: `,
-                async (title) => {
-                    await user.updateMeta({
-                        title,
-                        description: '',
-                        picture: '',
-                    });
-                    setTimeout(displayMenu, 1000);
-                },
-            );
+            rl.question(`Set title: `, async (title) => {
+                await user.updateMeta({
+                    title,
+                    description: '',
+                    picture: '',
+                });
+                setTimeout(displayMenu, 1000);
+            });
             break;
         case '8':
             console.log('Exiting...');

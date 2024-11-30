@@ -10,7 +10,6 @@ import {
 
 export const SPLITTER = '-';
 
-// @ts-ignore
 interface CryptoKeyPairP11 extends CryptoKeyPair {
     privateKey: CryptoKey<Pkcs11KeyAlgorithm>;
     publicKey: CryptoKey<Pkcs11KeyAlgorithm>;
@@ -19,7 +18,7 @@ interface CryptoKeyPairP11 extends CryptoKeyPair {
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 class CryptoSubtleWithQueue extends SubtleCrypto {
-    private eventQueue: Function[] = [];
+    private eventQueue: (() => Promise<void>)[] = [];
     private isProcessingQueue: boolean = false;
 
     constructor(subtle: SubtleCrypto) {
@@ -41,12 +40,14 @@ class CryptoSubtleWithQueue extends SubtleCrypto {
         this.isProcessingQueue = false;
     }
 
-    private queueOperation<T>(
-        operation: (...args: any[]) => Promise<T>,
-        args: any[],
+    private queueOperation<T, A extends unknown[]>(
+        operation: (...args: A) => Promise<T>,
+        args: [...A],
     ): Promise<T> {
         return new Promise((resolve) => {
-            this.eventQueue.push(() => resolve(operation.apply(this, args)));
+            this.eventQueue.push(async () =>
+                resolve(await operation.apply(this, args)),
+            );
             this.processEventQueue();
         });
     }
@@ -117,7 +118,7 @@ class CryptoSubtleWithQueue extends SubtleCrypto {
         return this.queueOperation(super.unwrapKey.bind(this), args);
     }
 
-    // @ts-ignore
+    // @ts-expect-error we are overriding the type with extended class
     public async generateKey(
         algorithm:
             | 'Ed25519'
@@ -149,7 +150,7 @@ class KeyStorageModified extends KeyStorage {
                 id: Buffer.from(id, 'hex'),
             },
             (obj) => {
-                key = obj.toType<any>();
+                key = obj.toType<SessionObject>();
                 return false;
             },
         );
@@ -160,7 +161,7 @@ class KeyStorageModified extends KeyStorage {
 export class CryptoP11 extends Crypto {
     constructor(config: CryptoParams) {
         super(config);
-        // @ts-ignore
+        // @ts-expect-error we are overriding the type with extended class
         this.subtle = new CryptoSubtleWithQueue(this.subtle);
         this.keyStorage = new KeyStorageModified(this);
     }

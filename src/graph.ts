@@ -1,5 +1,5 @@
 import cytoscape, { NodeSingular } from 'cytoscape';
-import { Logger, SmashProfile } from 'smash-node-lib';
+import { Logger } from 'smash-node-lib';
 
 import { UserID } from './bot.js';
 
@@ -69,6 +69,7 @@ export default class SocialGraph {
         return {
             source: a,
             target: b,
+            weight,
         };
     }
 
