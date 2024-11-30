@@ -95,7 +95,8 @@ describe('NAB integration testing', () => {
             ) as Promise<SmashProfile[]>;
             await alice.discover();
             const profiles = await waitForDiscover;
-            const findProfile = (did: SmashDID) => profiles.find((p) => p.did.ik === did.ik)?.scores?.score;
+            const findProfile = (did: SmashDID) =>
+                profiles.find((p) => p.did.ik === did.ik)?.scores?.score;
             return {
                 bob: findProfile(bobDid),
                 charlie: findProfile(charlieDid),
@@ -203,21 +204,6 @@ describe('NAB integration testing', () => {
                 expect(scores.bob).toBeLessThan(scores.charlie!);
                 expect(scores.bob).toBeLessThan(scores.darcy!);
             });
-
-            // describe('Bob smashing Charlie', () => {
-            //     beforeEach(async () => {
-            //         await bob.smash(charlieDid);
-            //     });
-
-            //     it('should increase Charlies for Alice', async () => {
-            //         const scores = await getAliceGrid();
-            //         expect(scores.charlie).toBeGreaterThan(
-            //             initialScores.charlie!,
-            //         );
-            //         expect(scores.charlie).toBeGreaterThan(scores.darcy!);
-            //         expect(scores.bob).toBeGreaterThan(scores.darcy!);
-            //     });
-            // });
         });
     });
 });

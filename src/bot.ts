@@ -11,12 +11,14 @@ import {
     SmashNAB,
     SmashProfile,
 } from 'smash-node-lib';
+
 import SocialGraph from './graph.js';
 
-export const last4 = (str: string) => str.substring(str.length - 6, str.length - 2);
+export const last4 = (str: string) =>
+    str.substring(str.length - 6, str.length - 2);
 export type UserID = ReturnType<typeof last4>;
 
-// TODO persist (file?): signal sessions, users graph (state), 
+// TODO persist (file?): signal sessions, users graph (state),
 // TODO handle session restart when invalid data (eg, lost context, refreshed keys)
 export class Bot {
     private logger: Logger;
@@ -25,10 +27,16 @@ export class Bot {
     protected graph: SocialGraph;
 
     public readonly profiles: Record<UserID, SmashProfile> = {};
-    public readonly relationships: Record<UserID, Record<UserID, {
-        time: Date,
-        state: Relationship,
-    }>> = {};
+    public readonly relationships: Record<
+        UserID,
+        Record<
+            UserID,
+            {
+                time: Date;
+                state: Relationship;
+            }
+        >
+    > = {};
 
     constructor(
         identity: Identity,
@@ -56,8 +64,9 @@ export class Bot {
     private async sendUsersToSession(did: SmashDID) {
         await this.nab.sendMessage(did, {
             type: 'profiles',
-            data: this.graph.getScores().map(node => ({
-                ...this.profiles[node.id], scores: { score: node.score },
+            data: this.graph.getScores().map((node) => ({
+                ...this.profiles[node.id],
+                scores: { score: node.score },
             })),
         } as ProfileListSmashMessage);
     }
@@ -97,19 +106,30 @@ export class Bot {
         this.graph.getOrCreate(id);
     }
 
-    private async handleActionEvent(sender: SmashDID, action: ActionData, time: Date) {
+    private async handleActionEvent(
+        sender: SmashDID,
+        action: ActionData,
+        time: Date,
+    ) {
         const id = last4(sender.ik) as UserID;
         const targetId = last4(action.target.ik) as UserID;
         if (sender.ik === action.target.ik)
-            return this.logger.info(`> ignoring self ${action.action} from ${id}`);
+            return this.logger.info(
+                `> ignoring self ${action.action} from ${id}`,
+            );
         this.logger.debug(
             `> ${id} --> ${action.action} --> ${last4(action.target.ik)} (${time.toLocaleTimeString()})`,
         );
         const currentState = this.relationships[id][last4(action.target.ik)];
         if (currentState && currentState.time > time)
-            return this.logger.debug(`current state (${currentState.state}) is newer (${currentState.time.toLocaleString()})`);
+            return this.logger.debug(
+                `current state (${currentState.state}) is newer (${currentState.time.toLocaleString()})`,
+            );
         else
-            this.relationships[id][last4(action.target.ik)] = { state: action.action, time };
+            this.relationships[id][last4(action.target.ik)] = {
+                state: action.action,
+                time,
+            };
         switch (action.action) {
             case 'smash':
                 this.graph.connectDirected(id, targetId);
@@ -122,12 +142,16 @@ export class Bot {
                 this.graph.resetEdges(id, targetId);
                 break;
             default:
-                this.logger.warn(`unknown action! (${action.action} from ${id})`)
+                this.logger.warn(
+                    `unknown action! (${action.action} from ${id})`,
+                );
         }
     }
 
-    private updateStoredProfile(id: UserID, partialProfile: Partial<SmashProfile>) {
+    private updateStoredProfile(
+        id: UserID,
+        partialProfile: Partial<SmashProfile>,
+    ) {
         this.profiles[id] = { ...this.profiles[id], ...partialProfile };
     }
-
 }
