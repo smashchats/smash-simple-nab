@@ -68,6 +68,7 @@ export class Bot {
                 ...this.profiles[node.id],
                 scores: { score: node.score },
             })),
+            after: '0',
         } as ProfileListSmashMessage);
     }
 
