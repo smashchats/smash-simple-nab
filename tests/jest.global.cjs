@@ -1,4 +1,6 @@
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { createServer } = require('node:http');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { Server } = require('socket.io');
 
 const PORT = 12345;
