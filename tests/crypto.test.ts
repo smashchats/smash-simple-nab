@@ -153,8 +153,8 @@ describe('CryptoP11 HSM Operations', () => {
 
         // Parallel deriveBits - reduce bit length to match P-256 curve size
         const derivedBits = await Promise.all([
-            crypto.subtle.deriveBits(deriveParams, keyPairA.privateKey, 128),
-            crypto.subtle.deriveBits(deriveParams, keyPairA.privateKey, 128),
+            crypto.subtle.deriveBits(deriveParams, keyPairA.privateKey, 56),
+            crypto.subtle.deriveBits(deriveParams, keyPairA.privateKey, 56),
         ]);
 
         // Parallel deriveKey
