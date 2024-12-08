@@ -26,6 +26,8 @@ RUN make install
 RUN mkdir -p /usr/local/var/lib/softhsm/tokens/
 RUN softhsm2-util --version
 
+# ================================
+
 # TODO: build vs run stages (& deps)
 FROM build AS final
 # TODO: separate SoftHSM and Node app in two micro services (as in https://github.com/vegardit/docker-softhsm2-pkcs11-proxy/)
@@ -45,6 +47,32 @@ RUN apt update && \
     echo 'node ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
 
 USER node
+
+# ================================
+
+FROM final AS build-nab
+
+WORKDIR /app
+
+COPY package*.json .
+
+RUN npm ci
+
+COPY . .
+
+RUN npm run build
+
+# ================================
+
+FROM final
+
+WORKDIR /app
+
+COPY --from=build-nab /app/node_modules /app/node_modules
+COPY --from=build-nab /app/package.json /app/package.json
+COPY --from=build-nab /app/dist /app/dist
+
+CMD ["npm", "start"]
 
 # TODO: split into devcontainer and prod
 # TODO: mount radicle for easy collaboration

@@ -1,0 +1,10 @@
+node_modules
+dist
+.devcontainer
+.husky
+.vscode
+config
+Dockerfile
+.dockerignore
+.gitignore
+.git
