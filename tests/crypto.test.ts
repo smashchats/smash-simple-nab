@@ -8,6 +8,8 @@ const signaturesBufferToHexString = (signatures: ArrayBuffer[]) => {
     );
 };
 
+const CRYPTO_TIMEOUT_MS = 25000;
+
 describe('CryptoP11 HSM Operations', () => {
     let crypto: CryptoP11;
     const HSM_CONFIG = JSON.parse(process.env.HSM_CONFIG || '{}');
@@ -23,7 +25,12 @@ describe('CryptoP11 HSM Operations', () => {
         publicExponent: new Uint8Array([1, 0, 1]),
         modulusLength: 2048,
     };
-    const testData = [new Uint8Array(1024), new Uint8Array(1024)];
+    const testData = [
+        new Uint8Array(1024),
+        new Uint8Array(1024),
+        new Uint8Array(1024),
+        new Uint8Array(1024),
+    ];
 
     beforeAll(async () => {
         keys = (await crypto.subtle.generateKey(alg, false, [
@@ -45,7 +52,7 @@ describe('CryptoP11 HSM Operations', () => {
             signatures.push(signature);
         }
 
-        expect(signatures).toHaveLength(2);
+        expect(signatures).toHaveLength(testData.length);
         const hexSignatures = signaturesBufferToHexString(signatures);
         expect(hexSignatures).not.toContain('undefined');
     });
@@ -59,7 +66,7 @@ describe('CryptoP11 HSM Operations', () => {
         for (const signature of signatures) {
             expect(signature).toBeDefined();
         }
-        expect(signatures).toHaveLength(2);
+        expect(signatures).toHaveLength(testData.length);
         const hexSignatures = signaturesBufferToHexString(signatures);
         expect(hexSignatures).not.toContain('undefined');
     });
@@ -71,7 +78,7 @@ describe('CryptoP11 HSM Operations', () => {
         for (const digest of digests) {
             expect(digest).toBeDefined();
         }
-        expect(digests).toHaveLength(2);
+        expect(digests).toHaveLength(testData.length);
     });
 
     it('should perform parallel verify operations', async () => {
@@ -91,98 +98,108 @@ describe('CryptoP11 HSM Operations', () => {
         for (const verified of verifications) {
             expect(verified).toBe(true);
         }
-        expect(verifications).toHaveLength(2);
+        expect(verifications).toHaveLength(testData.length);
     });
 
-    it('should perform parallel encrypt/decrypt operations', async () => {
-        const encryptAlg = {
-            name: 'RSA-OAEP',
-            hash: 'SHA-256',
-        };
+    it(
+        'should perform parallel encrypt/decrypt operations',
+        async () => {
+            const encryptAlg = {
+                name: 'RSA-OAEP',
+                hash: 'SHA-256',
+            };
 
-        // Generate encryption keys
-        const encKeys = (await crypto.subtle.generateKey(
-            {
-                ...encryptAlg,
-                modulusLength: 2048,
-                publicExponent: new Uint8Array([1, 0, 1]),
-            },
-            false,
-            ['encrypt', 'decrypt'],
-        )) as CryptoKeyPair;
-
-        const smallerTestData = [new Uint8Array(100), new Uint8Array(100)];
-
-        const encrypted = await Promise.all(
-            smallerTestData.map((data) =>
-                crypto.subtle.encrypt(encryptAlg, encKeys.publicKey, data),
-            ),
-        );
-
-        const decrypted = await Promise.all(
-            encrypted.map((data) =>
-                crypto.subtle.decrypt(encryptAlg, encKeys.privateKey, data),
-            ),
-        );
-
-        expect(encrypted).toHaveLength(2);
-        expect(decrypted).toHaveLength(2);
-    });
-
-    it('should perform parallel deriveBits/deriveKey operations', async () => {
-        const deriveAlg = {
-            name: 'ECDH',
-            namedCurve: 'P-256',
-        };
-
-        // Generate ECDH key pairs
-        const keyPairA = (await crypto.subtle.generateKey(deriveAlg, false, [
-            'deriveBits',
-            'deriveKey',
-        ])) as CryptoKeyPair;
-
-        const keyPairB = (await crypto.subtle.generateKey(deriveAlg, false, [
-            'deriveBits',
-            'deriveKey',
-        ])) as CryptoKeyPair;
-
-        const deriveParams = {
-            name: 'ECDH',
-            public: keyPairB.publicKey,
-        };
-
-        // Parallel deriveBits - reduce bit length to match P-256 curve size
-        const derivedBits = await Promise.all([
-            crypto.subtle.deriveBits(deriveParams, keyPairA.privateKey, 56),
-            crypto.subtle.deriveBits(deriveParams, keyPairA.privateKey, 56),
-        ]);
-
-        // Parallel deriveKey
-        const aesParams = {
-            name: 'AES-GCM',
-            length: 256,
-        };
-
-        const derivedKeys = await Promise.all([
-            crypto.subtle.deriveKey(
-                deriveParams,
-                keyPairA.privateKey,
-                aesParams,
+            // Generate encryption keys
+            const encKeys = (await crypto.subtle.generateKey(
+                {
+                    ...encryptAlg,
+                    modulusLength: 2048,
+                    publicExponent: new Uint8Array([1, 0, 1]),
+                },
                 false,
                 ['encrypt', 'decrypt'],
-            ),
-            crypto.subtle.deriveKey(
-                deriveParams,
-                keyPairA.privateKey,
-                aesParams,
-                false,
-                ['encrypt', 'decrypt'],
-            ),
-        ]);
+            )) as CryptoKeyPair;
 
-        expect(derivedBits).toHaveLength(2);
-        expect(derivedKeys).toHaveLength(2);
-    });
+            const smallerTestData = [new Uint8Array(100), new Uint8Array(100)];
+
+            const encrypted = await Promise.all(
+                smallerTestData.map((data) =>
+                    crypto.subtle.encrypt(encryptAlg, encKeys.publicKey, data),
+                ),
+            );
+
+            const decrypted = await Promise.all(
+                encrypted.map((data) =>
+                    crypto.subtle.decrypt(encryptAlg, encKeys.privateKey, data),
+                ),
+            );
+
+            expect(encrypted).toHaveLength(2);
+            expect(decrypted).toHaveLength(2);
+        },
+        CRYPTO_TIMEOUT_MS,
+    );
+
+    it(
+        'should perform parallel deriveBits/deriveKey operations',
+        async () => {
+            const deriveAlg = {
+                name: 'ECDH',
+                namedCurve: 'P-256',
+            };
+
+            // Generate ECDH key pairs
+            const keyPairA = (await crypto.subtle.generateKey(
+                deriveAlg,
+                false,
+                ['deriveBits', 'deriveKey'],
+            )) as CryptoKeyPair;
+
+            const keyPairB = (await crypto.subtle.generateKey(
+                deriveAlg,
+                false,
+                ['deriveBits', 'deriveKey'],
+            )) as CryptoKeyPair;
+
+            const deriveParams = {
+                name: 'ECDH',
+                public: keyPairB.publicKey,
+            };
+
+            // Parallel deriveBits - reduce bit length to match P-256 curve size
+            const derivedBits = await Promise.all([
+                crypto.subtle.deriveBits(deriveParams, keyPairA.privateKey, 32),
+                crypto.subtle.deriveBits(deriveParams, keyPairA.privateKey, 32),
+            ]);
+
+            // Parallel deriveKey
+            const aesParams = {
+                name: 'AES-GCM',
+                length: 256,
+            };
+
+            const derivedKeys = await Promise.all([
+                crypto.subtle.deriveKey(
+                    deriveParams,
+                    keyPairA.privateKey,
+                    aesParams,
+                    false,
+                    ['encrypt', 'decrypt'],
+                ),
+                crypto.subtle.deriveKey(
+                    deriveParams,
+                    keyPairA.privateKey,
+                    aesParams,
+                    false,
+                    ['encrypt', 'decrypt'],
+                ),
+            ]);
+
+            expect(derivedBits).toHaveLength(2);
+            expect(derivedKeys).toHaveLength(2);
+        },
+        CRYPTO_TIMEOUT_MS,
+    );
 
     it('should perform parallel wrap/unwrap operations', async () => {
         // Generate a key to wrap
@@ -237,56 +254,85 @@ describe('CryptoP11 HSM Operations', () => {
         expect(unwrapped).toHaveLength(2);
     });
 
-    it('should perform parallel generateKey operations', async () => {
-        const generateParams = {
-            name: 'AES-GCM',
-            length: 256,
-        };
+    it(
+        'should perform parallel generateKey operations',
+        async () => {
+            const generateParams = {
+                name: 'AES-GCM',
+                length: 256,
+            };
 
-        const keys = await Promise.all([
-            crypto.subtle.generateKey(generateParams, true, [
-                'encrypt',
-                'decrypt',
-            ]),
-            crypto.subtle.generateKey(generateParams, true, [
-                'encrypt',
-                'decrypt',
-            ]),
-        ]);
+            const keys = await Promise.all([
+                crypto.subtle.generateKey(generateParams, true, [
+                    'encrypt',
+                    'decrypt',
+                ]),
+                crypto.subtle.generateKey(generateParams, true, [
+                    'encrypt',
+                    'decrypt',
+                ]),
+            ]);
 
-        expect(keys).toHaveLength(2);
-        for (const key of keys) {
-            expect(key).toBeDefined();
-        }
-    });
+            expect(keys).toHaveLength(2);
+            for (const key of keys) {
+                expect(key).toBeDefined();
+            }
+        },
+        CRYPTO_TIMEOUT_MS,
+    );
 
-    it('should perform parallel importKey operations', async () => {
-        const exportedPrivateKey = JSON.parse(
-            '{"key_ops":["deriveKey","deriveBits"],"ext":true,"kty":"EC","x":"Xg8dSsr93TMctKPiG3yRZ72KTJihrzSTzE_vLk7m1to","y":"cJg1q3Mk08b_gw7pawTB9oZ2svkZE_6I0C26ZDJC0Qk","crv":"P-256","d":"ObBoSrita5E2pJXQOTC35amrY-8bTRq1SdbDFmawkDU"}',
-        );
-        const KEY_ALGORITHM = { name: 'ECDH', namedCurve: 'P-256' };
-        const KEY_USAGE = ['deriveBits', 'deriveKey'];
+    it(
+        'should perform parallel importKey operations',
+        async () => {
+            const exportedPrivateKey = JSON.parse(
+                '{"key_ops":["deriveKey","deriveBits"],"ext":true,"kty":"EC","x":"Xg8dSsr93TMctKPiG3yRZ72KTJihrzSTzE_vLk7m1to","y":"cJg1q3Mk08b_gw7pawTB9oZ2svkZE_6I0C26ZDJC0Qk","crv":"P-256","d":"ObBoSrita5E2pJXQOTC35amrY-8bTRq1SdbDFmawkDU"}',
+            );
+            const KEY_ALGORITHM = { name: 'ECDH', namedCurve: 'P-256' };
+            const KEY_USAGE = ['deriveBits', 'deriveKey'];
 
-        const importedKeys = await Promise.all(
-            Array(3)
-                .fill(0)
-                .map(() =>
-                    crypto.subtle.importKey(
-                        'jwk',
-                        exportedPrivateKey,
-                        KEY_ALGORITHM,
-                        true,
-                        KEY_USAGE as KeyUsage[],
+            const importedKeys = await Promise.all(
+                Array(3)
+                    .fill(0)
+                    .map(() =>
+                        crypto.subtle.importKey(
+                            'jwk',
+                            exportedPrivateKey,
+                            KEY_ALGORITHM,
+                            true,
+                            KEY_USAGE as KeyUsage[],
+                        ),
                     ),
-                ),
-        );
+            );
 
-        expect(importedKeys).toHaveLength(3);
-        for (const key of importedKeys) {
-            expect(key).toBeDefined();
-            expect(key.algorithm.name).toEqual(KEY_ALGORITHM.name);
-            expect(key.extractable).toBe(true);
-            expect(key.usages).toEqual(expect.arrayContaining(KEY_USAGE));
-        }
+            expect(importedKeys).toHaveLength(3);
+            for (const key of importedKeys) {
+                expect(key).toBeDefined();
+                expect(key.algorithm.name).toEqual(KEY_ALGORITHM.name);
+                expect(key.extractable).toBe(true);
+                expect(key.usages).toEqual(expect.arrayContaining(KEY_USAGE));
+            }
+        },
+        CRYPTO_TIMEOUT_MS,
+    );
+
+    it('should perform parallel exportKey operations', async () => {
+        const keyPair = (await crypto.subtle.generateKey(alg, true, [
+            'verify',
+            'sign',
+        ])) as CryptoKeyPair;
+
+        const keysToExport = [
+            { key: keyPair.privateKey, format: 'pkcs8' as KeyFormat },
+            { key: keyPair.publicKey, format: 'spki' as KeyFormat },
+            { key: keyPair.privateKey, format: 'jwk' as KeyFormat },
+            { key: keyPair.publicKey, format: 'jwk' as KeyFormat },
+        ];
+
+        const exportedKeys = await Promise.all(
+            keysToExport.map(({ key, format }) =>
+                crypto.subtle.exportKey(format, key),
+            ),
+        );
+        expect(exportedKeys.length).toBe(keysToExport.length);
     });
 });

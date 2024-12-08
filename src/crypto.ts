@@ -8,9 +8,8 @@ import {
 
 export const SPLITTER = '-';
 
-class CryptoSubtleWithQueue extends SubtleCrypto {
-    // Add mutex lock
-    private signMutex = {
+class CryptoSubtleWithMutex extends SubtleCrypto {
+    private operationMutex = {
         locked: false,
         queue: [] as (() => void)[],
 
@@ -31,62 +30,99 @@ class CryptoSubtleWithQueue extends SubtleCrypto {
         },
     };
 
+    private originalSubtle: SubtleCrypto;
+
     constructor(subtle: SubtleCrypto) {
         super(subtle.container);
+        this.originalSubtle = subtle;
     }
 
     private async performOperation<T, A extends unknown[]>(
-        operation: (...args: A) => Promise<T>,
+        operation: string,
         args: [...A],
     ): Promise<T> {
         try {
-            await this.signMutex.acquire();
-            return await operation.apply(this, args);
+            await this.operationMutex.acquire();
+            // @ts-expect-error we are overriding the type with extended class
+            const result = await this.originalSubtle[operation](...args);
+            return result;
         } finally {
-            this.signMutex.release();
+            this.operationMutex.release();
         }
     }
 
     public async sign(
         ...args: Parameters<SubtleCrypto['sign']>
     ): ReturnType<SubtleCrypto['sign']> {
-        return this.performOperation(super.sign.bind(this), args);
+        return this.performOperation('sign', args);
     }
 
     public async verify(
         ...args: Parameters<SubtleCrypto['verify']>
     ): ReturnType<SubtleCrypto['verify']> {
-        return this.performOperation(super.verify.bind(this), args);
+        return this.performOperation('verify', args);
     }
 
     public async digest(
         ...args: Parameters<SubtleCrypto['digest']>
     ): ReturnType<SubtleCrypto['digest']> {
-        return this.performOperation(super.digest.bind(this), args);
+        return this.performOperation('digest', args);
     }
 
     public async encrypt(
         ...args: Parameters<SubtleCrypto['encrypt']>
     ): ReturnType<SubtleCrypto['encrypt']> {
-        return this.performOperation(super.encrypt.bind(this), args);
+        return this.performOperation('encrypt', args);
     }
 
     public async decrypt(
         ...args: Parameters<SubtleCrypto['decrypt']>
     ): ReturnType<SubtleCrypto['decrypt']> {
-        return this.performOperation(super.decrypt.bind(this), args);
+        return this.performOperation('decrypt', args);
     }
 
     public async wrapKey(
         ...args: Parameters<SubtleCrypto['wrapKey']>
     ): ReturnType<SubtleCrypto['wrapKey']> {
-        return this.performOperation(super.wrapKey.bind(this), args);
+        return this.performOperation('wrapKey', args);
     }
 
     public async unwrapKey(
         ...args: Parameters<SubtleCrypto['unwrapKey']>
     ): ReturnType<SubtleCrypto['unwrapKey']> {
-        return this.performOperation(super.unwrapKey.bind(this), args);
+        return this.performOperation('unwrapKey', args);
+    }
+
+    public async deriveBits(
+        ...args: Parameters<SubtleCrypto['deriveBits']>
+    ): ReturnType<SubtleCrypto['deriveBits']> {
+        return this.performOperation('deriveBits', args);
+    }
+
+    public async deriveKey(
+        ...args: Parameters<SubtleCrypto['deriveKey']>
+    ): ReturnType<SubtleCrypto['deriveKey']> {
+        return this.performOperation('deriveKey', args);
+    }
+
+    // @ts-expect-error we are overriding the type with extended class
+    public async generateKey(
+        ...args: Parameters<SubtleCrypto['generateKey']>
+    ): ReturnType<SubtleCrypto['generateKey']> {
+        return this.performOperation('generateKey', args);
+    }
+
+    public async importKey(
+        ...args: Parameters<SubtleCrypto['importKey']>
+    ): ReturnType<SubtleCrypto['importKey']> {
+        return this.performOperation('importKey', args);
+    }
+
+    // @ts-expect-error we are overriding the type with extended class
+    public async exportKey(
+        ...args: Parameters<SubtleCrypto['exportKey']>
+    ): ReturnType<SubtleCrypto['exportKey']> {
+        return this.performOperation('exportKey', args);
     }
 }
 
@@ -112,7 +148,8 @@ class KeyStorageModified extends KeyStorage {
 export class CryptoP11 extends Crypto {
     constructor(config: CryptoParams) {
         super(config);
-        this.subtle = new CryptoSubtleWithQueue(this.subtle);
+        // @ts-expect-error we are overriding the type with extended class
+        this.subtle = new CryptoSubtleWithMutex(this.subtle);
         this.keyStorage = new KeyStorageModified(this);
     }
 }
