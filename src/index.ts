@@ -9,6 +9,7 @@ import {
     Identity,
     SMEConfig,
     SmashMessaging,
+    SmashProfileMeta,
 } from 'smash-node-lib';
 
 import { Bot } from './bot.js';
@@ -98,17 +99,25 @@ const loadIdentityFromFile = (
     });
 };
 
-if (!checkEnvironmentVariables(['HSM_CONFIG', 'NAB_ID_FILEPATH', 'SME_CONFIG']))
+if (
+    !checkEnvironmentVariables([
+        'HSM_CONFIG',
+        'NAB_ID_FILEPATH',
+        'SME_CONFIG',
+        'NAB_META',
+    ])
+)
     process.exit(1);
 
 const SME_CONFIG = JSON.parse(process.env.SME_CONFIG!) as SMEConfig;
 const HSM_CONFIG = JSON.parse(process.env.HSM_CONFIG!);
+const NAB_META = JSON.parse(process.env.NAB_META!) as SmashProfileMeta;
 
 class BotGraphVisualizer extends Bot {
     private server?: http.Server;
 
     constructor(identity: Identity) {
-        super(identity);
+        super(identity, 'NAB', 'DEBUG', NAB_META);
     }
 
     public async start() {

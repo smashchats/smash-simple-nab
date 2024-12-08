@@ -10,6 +10,7 @@ import {
     SmashDID,
     SmashNAB,
     SmashProfile,
+    SmashProfileMeta,
 } from 'smash-node-lib';
 
 import SocialGraph from './graph.js';
@@ -42,8 +43,9 @@ export class Bot {
         identity: Identity,
         name: string = 'NAB',
         logLevel = 'DEBUG' as const,
+        meta: SmashProfileMeta | undefined = undefined,
     ) {
-        this.nab = new SmashNAB(identity, undefined, 'INFO', name);
+        this.nab = new SmashNAB(identity, meta, 'INFO', name);
         this.logger = new Logger(name, logLevel);
         this.graph = new SocialGraph(this.logger);
         // TODO add itself to the graph??
