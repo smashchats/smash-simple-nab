@@ -84,7 +84,7 @@ NAB will now manage the example neighborhood and facilitate user interactions!
 
 Check out the parent project ([simple neighborhood](https://github.com/unstaticlabs/smash-simple-neighborhood)) for a complete example of a Neighborhood deployment (using Docker Compose) including this NAB and additional providers (Smash Messaging Endpoint, DNS server, etc).
 
-[Browse open issues](https://app.radicle.xyz/nodes/seed.radicle.garden/rad:z3TrzMRLa6JXstNUb93AC524MjjoQ/issues). or, [start contributing today!](../docs/CONTRIBUTING.md)
+[Browse open issues](https://app.radicle.xyz/nodes/seed.radicle.garden/rad:z3w1tD8MyHaAjrv9wGgLEBUiz95kr/issues). or, [start contributing today!](../docs/CONTRIBUTING.md)
 
 ## Contributing
 
