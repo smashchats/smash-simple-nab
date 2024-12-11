@@ -46,8 +46,6 @@ RUN apt update && \
     adduser --uid 1001 --gid 1001 --disabled-password --gecos "" node && \
     echo 'node ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
 
-USER node
-
 # ================================
 
 FROM final AS build-nab
@@ -68,11 +66,14 @@ FROM final
 
 WORKDIR /app
 
-COPY --from=build-nab /app/node_modules /app/node_modules
-COPY --from=build-nab /app/package.json /app/package.json
-COPY --from=build-nab /app/dist /app/dist
+RUN mkdir -p /app/config && chown -R node:node /app/config
 
-CMD ["npm", "start"]
+COPY --from=build-nab --chown=node:node /app/node_modules /app/node_modules
+COPY --from=build-nab --chown=node:node /app/package.json /app/package.json
+COPY --from=build-nab --chown=node:node /app/dist /app/dist
+
+USER node
+CMD ["node", "/app/dist/src/index.js"]
 
 # TODO: split into devcontainer and prod
 # TODO: mount radicle for easy collaboration
