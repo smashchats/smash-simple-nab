@@ -54,8 +54,8 @@ FROM final AS build-nab
 
 WORKDIR /app
 
+ENV CI=true
 COPY package*.json .
-
 RUN npm ci
 
 COPY . .
