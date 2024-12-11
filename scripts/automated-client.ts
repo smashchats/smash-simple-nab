@@ -43,23 +43,20 @@ async function createTestUser(name: string): Promise<TestUser> {
     const user = new SmashUser(identity, undefined, 'INFO', name);
     await user.updateMeta({ title: name, description: '', picture: '' });
     const did = await user.getDID();
-    user.on(
-        'nbh_profiles',
-        async (sender, profiles: SmashProfile[]) => {
-            console.log(
-                `\n${name} discovered profiles from ${printDID(sender)}:`,
-                ...(await Promise.all(
-                    profiles
-                        .toSorted((a, b) => b.scores!.score - a.scores!.score)
-                        .map(
-                            async (profile, index) =>
-                                `\n${index + 1}. (${Math.round(profile.scores!.score * 100)}) ${printDID(profile.did)} (${profile.meta?.title})`,
-                        ),
-                )),
-                '\n',
-            );
-        },
-    );
+    user.on('nbh_profiles', async (sender, profiles: SmashProfile[]) => {
+        console.log(
+            `\n${name} discovered profiles from ${printDID(sender)}:`,
+            ...(await Promise.all(
+                profiles
+                    .toSorted((a, b) => b.scores!.score - a.scores!.score)
+                    .map(
+                        async (profile, index) =>
+                            `\n${index + 1}. (${Math.round(profile.scores!.score * 100)}) ${printDID(profile.did)} (${profile.meta?.title})`,
+                    ),
+            )),
+            '\n',
+        );
+    });
     return { name, user, did };
 }
 
@@ -196,7 +193,4 @@ async function main() {
     rl.close();
 }
 
-main().catch((error) => {
-    console.error('Error:', error);
-    process.exit(1);
-});
+main();
