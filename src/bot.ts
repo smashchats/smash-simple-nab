@@ -156,5 +156,10 @@ export class Bot {
         partialProfile: Partial<SmashProfile>,
     ) {
         this.profiles[id] = { ...this.profiles[id], ...partialProfile };
+        // do not store the base64 profile picture for now (performance/efficiency)
+        // 1. later, this should be replaced with proper distributed storage
+        // 2. full profile will be sent directly from peer to peer
+        if (this.profiles[id] && this.profiles[id].meta)
+            delete this.profiles[id].meta.picture;
     }
 }
