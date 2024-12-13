@@ -53,7 +53,7 @@ const addDiscoverListener = (user: SmashUser, callback?: () => void) => {
 async function createUser(): Promise<SmashUser> {
     const identity = await SmashMessaging.generateIdentity();
     const user = new SmashUser(identity, undefined, 'INFO');
-    user.on('message', (message) => {
+    user.on('data', (message) => {
         console.info('\n\nReceived message:', JSON.stringify(message, null, 2));
     });
     return user;
