@@ -2,7 +2,7 @@
 
 The [**Smash Neighborhood Admin Bot (NAB)**](<https://dev.smashchats.com/neighborhood%20admin%20bot%20(nab)>) is part of the [**Smash Protocol**](https://dev.smashchats.com/smash%20protocol), a decentralized, secure system designed to give users control over their data, communication, and interactions. NAB helps manage communities, called [**Smash Neighborhoods**](<https://dev.smashchats.com/smash%20neighborhoods%20(nbh)>), by guiding users, facilitating interactions, and ensuring secure, peer-to-peer connections.
 
-This repository contains a demo implementation of a NAB based on the [Smash Node Library](https://github.com/unstaticlabs/smash-node-lib).
+This repository contains a demo implementation of a NAB based on the [Smash Node Library](https://github.com/smashchats/smash-simple-nab).
 
 ## What is Smash?
 
@@ -82,7 +82,7 @@ NAB will now manage the example neighborhood and facilitate user interactions!
 - **ESLint** and **Prettier** ensure clean, readable, and well-formatted code.
 - The project uses [**Devcontainers**](https://containers.dev/) for a consistent development environment.
 
-Check out the parent project ([simple neighborhood](https://github.com/unstaticlabs/smash-simple-neighborhood)) for a complete example of a Neighborhood deployment (using Docker Compose) including this NAB and additional providers (Smash Messaging Endpoint, DNS server, etc).
+Check out the parent project ([simple neighborhood](https://github.com/smashchats/smash-simple-nab)) for a complete example of a Neighborhood deployment (using Docker Compose) including this NAB and additional providers (Smash Messaging Endpoint, DNS server, etc).
 
 [Browse open issues](https://app.radicle.xyz/nodes/seed.radicle.garden/rad:z3w1tD8MyHaAjrv9wGgLEBUiz95kr/issues). or, [start contributing today!](../docs/CONTRIBUTING.md)
 
