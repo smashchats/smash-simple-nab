@@ -9,7 +9,7 @@
         "start": "node -r dotenv/config .",
         "prepare": "[ -n \"$CI\" ] || npm run prepare:husky",
         "prepare:husky": "husky",
-        "postinstall": "patch-package",
+        "postinstall": "[ \"$NODE_ENV\" = \"production\" ] || patch-package",
         "test:ci": "jest --config ./jest.ci-config.cjs",
         "test": "jest --config ./jest.config.cjs",
         "test:coverage": "npm run test -- --coverage",
@@ -31,7 +31,10 @@
         "script/sign": "tsx ./scripts/test-sign.ts",
         "create-id": "npm run --silent script/json 0 1 0 > ./out/identity-exported.json",
         "generate-id": "mkdir -p config && npm run --silent script/id 0 1 0 > ./config/identity.json",
-        "lint-staged": "lint-staged"
+        "lint-staged": "lint-staged",
+        "docker:build:softhsm": "docker build -t softhsmv2 -f softhsmv2/Dockerfile softhsmv2",
+        "docker:test:softhsm": "npm run docker:build:softhsm && docker build -f softhsmv2/Dockerfile.test softhsmv2",
+        "docker:build:nab": "npm run docker:build:softhsm && docker build -t nab -f Dockerfile ."
     },
     "lint-staged": {
         "*.ts": "npm run prettier:format"

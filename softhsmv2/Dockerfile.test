@@ -1,8 +1,8 @@
 FROM softhsmv2
 
 RUN apt-get install -y --no-install-recommends opensc
+RUN softhsm2-util --free --init-token --label 'MyToken1' --so-pin '123456' --pin '12345'
 
-# TODO: variabilize
 RUN pkcs11-tool --module /usr/local/lib/softhsm/libsofthsm2.so --test --token-label "MyToken1"
 RUN pkcs11-tool --module /usr/local/lib/softhsm/libsofthsm2.so --test --token-label "MyToken1" --pin "12345"
 RUN pkcs11-tool --module /usr/local/lib/softhsm/libsofthsm2.so --test --token-label "MyToken1" --so-pin "123456"

@@ -1,15 +1,16 @@
 {
     "name": "NAB-Node-HSM-Ubuntu",
     "build": {
-        "dockerfile": "../Dockerfile"
+        "dockerfile": "../softhsmv2/Dockerfile",
+        "context": "../softhsmv2"
     },
+    "remoteUser": "node",
     "customizations": {
         "vscode": {
             "extensions": [
                 "dbaeumer.vscode-eslint",
                 "rvest.vs-code-prettier-eslint",
-                "esbenp.prettier-vscode",
-                "Orta.vscode-jest"
+                "esbenp.prettier-vscode"
             ]
         }
     },
@@ -17,7 +18,8 @@
         "source=${localEnv:HOME}${localEnv:USERPROFILE}/.radicle,target=/home/node/.radicle,type=bind",
         "source=${localWorkspaceFolderBasename}-radicle,target=/home/node/.radicle/bin,type=volume",
         "source=${localWorkspaceFolderBasename}-node_modules,target=${containerWorkspaceFolder}/node_modules,type=volume",
+        "source=smash-node-lib-node_modules,target=${containerWorkspaceFolder}/smash-node-lib/node_modules,type=volume",
         "source=${localWorkspaceFolderBasename}-dist,target=${containerWorkspaceFolder}/dist,type=volume"
     ],
-    "postCreateCommand": "echo 'source <(npm completion)' >> /home/node/.bashrc && sudo chown -R node dist node_modules /home/node/.radicle/bin && softhsm2-util --free --init-token --label 'MyToken1' --so-pin '123456' --pin '12345' && curl -sSf https://radicle.xyz/install | sh && echo 'export PATH=$PATH:/home/node/.radicle/bin' >> /home/node/.bashrc"
+    "postCreateCommand": "echo 'source <(npm completion)' >> /home/node/.bashrc && sudo chown -R node:node dist node_modules /home/node/.radicle/bin && npm install && softhsm2-util --free --init-token --label 'MyToken1' --so-pin '123456' --pin '12345' && curl -sSf https://radicle.xyz/install | sh && echo 'export PATH=$PATH:/home/node/.radicle/bin' >> /home/node/.bashrc"
 }
