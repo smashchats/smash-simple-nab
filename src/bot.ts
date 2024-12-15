@@ -1,33 +1,41 @@
 import 'dotenv/config';
-import {
-    ActionData,
+import type {
+    DID,
+    DIDDocument,
+    DIDString,
+    IMProfile,
+    ISO8601,
     Identity,
     Logger,
-    ProfileListSmashMessage,
     Relationship,
-    SMEConfig,
     SMEConfigJSONWithoutDefaults,
-    SmashDID,
-    SmashNAB,
-    SmashProfile,
-    SmashProfileMeta,
+    SmashChatProfileListMessage,
+    SmashChatRelationshipData,
+    SmashProfileList,
+    sha256,
 } from 'smash-node-lib';
+import { DIDResolver, SmashNAB } from 'smash-node-lib';
 
 import SocialGraph from './graph.js';
 
-export const last4 = (str: string) =>
-    str.substring(str.length - 6, str.length - 2);
+export const last4 = (base64str: string) => {
+    const str = base64str.replaceAll('=', '');
+    return str.substring(str.length - 4, str.length);
+};
 export type UserID = ReturnType<typeof last4>;
 
 // TODO persist (file?): signal sessions, users graph (state),
 // TODO handle session restart when invalid data (eg, lost context, refreshed keys)
-export class Bot {
-    public readonly logger: Logger;
-
-    public readonly nab: SmashNAB;
+export class Bot extends SmashNAB {
     protected graph: SocialGraph;
 
-    public readonly profiles: Record<UserID, SmashProfile> = {};
+    public readonly profiles: Record<
+        UserID,
+        {
+            did: DIDDocument;
+            meta: Partial<Omit<IMProfile, 'avatar'>> | undefined;
+        }
+    > = {};
     public readonly relationships: Record<
         UserID,
         Record<
@@ -43,97 +51,76 @@ export class Bot {
         identity: Identity,
         name: string = 'NAB',
         logLevel = 'DEBUG' as const,
-        meta: SmashProfileMeta | undefined = undefined,
+        meta: IMProfile | undefined = undefined,
     ) {
-        this.nab = new SmashNAB(identity, meta, 'INFO', name);
-        this.logger = new Logger(name, logLevel);
-        this.graph = new SocialGraph(this.logger);
+        super(identity, meta, logLevel, name);
+        this.graph = new SocialGraph(this.getLogger());
+        this.registerHooks();
         // TODO add itself to the graph??
     }
 
-    public async initEndpoints(smes: SMEConfig[]) {
-        await this.nab.initEndpoints(smes);
-        await this.printJoinInfo(smes);
-    }
-
     public async printJoinInfo(smes: SMEConfigJSONWithoutDefaults[] = []) {
-        const joinInfo = await this.nab.getJoinInfo(smes);
+        const joinInfo = await this.getJoinInfo(smes);
         this.logger.info('JOIN INFO:');
         this.logger.info(JSON.stringify(joinInfo));
     }
 
     // TODO support multiple distances/scores
-    private async sendUsersToSession(did: SmashDID) {
-        await this.nab.sendMessage(did, {
-            type: 'profiles',
+    private async sendUsersToSession(did: DIDDocument) {
+        await this.sendMessage(did, {
+            type: 'com.smashchats.profiles',
             data: this.graph.getScores().map((node) => ({
-                ...this.profiles[node.id],
+                ...this.profiles[node.id].meta,
+                did: this.profiles[node.id].did,
                 scores: { score: node.score },
-            })),
+            })) as SmashProfileList,
             after: '0',
-        } as ProfileListSmashMessage);
-    }
-
-    public async start() {
-        this.setupEventListeners();
+        } as SmashChatProfileListMessage);
     }
 
     public async stop() {
-        await this.nab.close();
+        await this.close();
     }
 
-    private setupEventListeners() {
-        this.nab.on('join', this.handleJoinEvent.bind(this));
-        this.nab.on('discover', this.handleDiscoverEvent.bind(this));
-        this.nab.on('action', this.handleActionEvent.bind(this));
-        this.nab.on('profile', this.handleProfileEvent.bind(this));
-    }
-
-    private handleProfileEvent(sender: SmashDID, profile: SmashProfile) {
-        // TODO: expire after Xmn (offline unless refreshed)
-        this.logger.debug(`> updating ${last4(sender.ik)} profile`);
-        this.updateStoredProfile(last4(sender.ik), profile);
-    }
-
-    private async handleDiscoverEvent(did: SmashDID) {
-        this.logger.debug(`> discovery ${last4(did.ik)}`);
-        await this.sendUsersToSession(did);
-    }
-
-    // TODO: await profile discovery in order to appear on the visible graph (?)
-    private async handleJoinEvent(did: SmashDID) {
-        const id: UserID = last4(did.ik);
+    async onJoin(from: DIDString, did: DIDDocument) {
+        const id: UserID = last4(from);
         this.logger.debug(`> ${id} joined`);
         this.relationships[id] = { ...this.relationships[id] };
-        this.updateStoredProfile(id, { did });
+        this.updateStoredDID(id, did);
         this.graph.getOrCreate(id);
     }
 
-    private async handleActionEvent(
-        sender: SmashDID,
-        action: ActionData,
-        time: Date,
+    async onDiscover(from: DIDString) {
+        const id = last4(from);
+        this.logger.debug(`> discovery ${id}`);
+        await this.sendUsersToSession(this.profiles[id]!.did);
+    }
+
+    async onRelationship(
+        from: DIDString,
+        { target, action }: SmashChatRelationshipData,
+        _: sha256,
+        timeString: ISO8601,
     ) {
-        const id = last4(sender.ik) as UserID;
-        const targetId = last4(action.target.ik) as UserID;
-        if (sender.ik === action.target.ik)
-            return this.logger.info(
-                `> ignoring self ${action.action} from ${id}`,
-            );
+        const time = new Date(timeString);
+        const id = last4(from) as UserID;
+        const targetId = last4(target) as UserID;
+        if (from === target)
+            return this.logger.info(`> ignoring self ${action} from ${id}`);
         this.logger.debug(
-            `> ${id} --> ${action.action} --> ${last4(action.target.ik)} (${time.toLocaleTimeString()})`,
+            `> ${id} --> ${action} --> ${targetId} (${time.toLocaleTimeString()})`,
         );
-        const currentState = this.relationships[id][last4(action.target.ik)];
+        const currentState = this.relationships[id][targetId];
         if (currentState && currentState.time > time)
             return this.logger.debug(
                 `current state (${currentState.state}) is newer (${currentState.time.toLocaleString()})`,
             );
         else
-            this.relationships[id][last4(action.target.ik)] = {
-                state: action.action,
+            this.relationships[id][targetId] = {
+                state: action,
                 time,
             };
-        switch (action.action) {
+        switch (action) {
             case 'smash':
                 this.graph.connectDirected(id, targetId);
                 break;
@@ -146,20 +133,33 @@ export class Bot {
                 break;
             default:
                 this.logger.warn(
-                    `unknown action! (${action.action} from ${id})`,
+                    `unknown action! (${action as never} from ${id})`,
                 );
         }
     }
 
-    private updateStoredProfile(
-        id: UserID,
-        partialProfile: Partial<SmashProfile>,
-    ) {
-        this.profiles[id] = { ...this.profiles[id], ...partialProfile };
-        // do not store the base64 profile picture for now (performance/efficiency)
-        // 1. later, this should be replaced with proper distributed storage
-        // 2. full profile will be sent directly from peer to peer
-        if (this.profiles[id] && this.profiles[id].meta)
-            delete this.profiles[id].meta.picture;
+    private async updateStoredDID(id: UserID, did: DID) {
+        this.profiles[id] = {
+            did: await DIDResolver.resolve(did),
+            meta: undefined,
+        };
+    }
+
+    // private updateStoredProfile(
+    //     id: UserID,
+    //     partialProfile: Partial<IMProfile>,
+    // ) {
+    //     // do not store the base64 profile picture for now (performance/efficiency)
+    //     // 1. later, this should be replaced with proper distributed storage
+    //     // 2. full profile will be sent directly from peer to peer
+    //     delete partialProfile.avatar;
+    //     this.profiles[id].meta = {
+    //         ...this.profiles[id].meta,
+    //         ...partialProfile,
+    //     };
+    // }
+
+    public getLogger(): Logger {
+        return this.logger;
     }
 }

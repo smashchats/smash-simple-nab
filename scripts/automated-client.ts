@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 import readline from 'readline';
-import {
+import type {
+    DIDDocument,
     SmashActionJson,
-    SmashDID,
+    SmashProfileList,
+} from 'smash-node-lib';
+import {
+    SMASH_NBH_PROFILE_LIST,
     SmashMessaging,
-    SmashProfile,
     SmashUser,
 } from 'smash-node-lib';
 
@@ -28,11 +31,11 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 type TestUser = {
     name: string;
     user: SmashUser;
-    did?: SmashDID;
+    did?: DIDDocument;
 };
 
 const DICT: Record<string, string> = {};
-const printDID = (did: SmashDID) => {
+const printDID = (did: DIDDocument) => {
     const key = last4(did.ik);
     if (!DICT[key]) DICT[key] = did.ik;
     return key;
@@ -41,22 +44,25 @@ const printDID = (did: SmashDID) => {
 async function createTestUser(name: string): Promise<TestUser> {
     const identity = await SmashMessaging.generateIdentity();
     const user = new SmashUser(identity, undefined, 'INFO', name);
-    await user.updateMeta({ title: name, description: '', picture: '' });
+    await user.updateMeta({ title: name, description: '', avatar: '' });
     const did = await user.getDID();
-    user.on('nbh_profiles', async (sender, profiles: SmashProfile[]) => {
-        console.log(
-            `\n${name} discovered profiles from ${printDID(sender)}:`,
-            ...(await Promise.all(
-                profiles
-                    .toSorted((a, b) => b.scores!.score - a.scores!.score)
-                    .map(
-                        async (profile, index) =>
-                            `\n${index + 1}. (${Math.round(profile.scores!.score * 100)}) ${printDID(profile.did)} (${profile.meta?.title})`,
-                    ),
-            )),
-            '\n',
-        );
-    });
+    user.on(
+        SMASH_NBH_PROFILE_LIST,
+        async (sender, profiles: SmashProfileList) => {
+            console.log(
+                `\n${name} discovered profiles from ${printDID(sender)}:`,
+                ...(await Promise.all(
+                    profiles
+                        .toSorted((a, b) => b.scores!.score - a.scores!.score)
+                        .map(
+                            async (profile, index) =>
+                                `\n${index + 1}. (${Math.round(profile.scores!.score * 100)}) ${printDID(profile.did)} (${profile.meta?.title})`,
+                        ),
+                )),
+                '\n',
+            );
+        },
+    );
     return { name, user, did };
 }
 

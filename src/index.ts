@@ -4,13 +4,8 @@ import * as fs from 'fs';
 import { ObjectClass } from 'graphene-pk11';
 import http from 'http';
 import { CryptoParams } from 'node-webcrypto-p11';
-import {
-    ECPublicKey,
-    Identity,
-    SMEConfig,
-    SmashMessaging,
-    SmashProfileMeta,
-} from 'smash-node-lib';
+import type { IMProfile, Identity, SMEConfig } from 'smash-node-lib';
+import { ECPublicKey, SmashMessaging } from 'smash-node-lib';
 
 import { Bot } from './bot.js';
 import { CryptoP11, SPLITTER } from './crypto.js';
@@ -111,7 +106,7 @@ if (
 
 const SME_CONFIG = JSON.parse(process.env.SME_CONFIG!) as SMEConfig;
 const HSM_CONFIG = JSON.parse(process.env.HSM_CONFIG!);
-const NAB_META = JSON.parse(process.env.NAB_META!) as SmashProfileMeta;
+const NAB_META = JSON.parse(process.env.NAB_META!) as IMProfile;
 
 class BotGraphVisualizer extends Bot {
     private server?: http.Server;
@@ -120,8 +115,9 @@ class BotGraphVisualizer extends Bot {
         super(identity, 'NAB', 'DEBUG', NAB_META);
     }
 
-    public async start() {
-        await super.start();
+    public async start(smes: SMEConfig[]) {
+        await this.initEndpoints(smes);
+        await this.printJoinInfo(smes);
         this.setupGraphVisualization();
     }
 
@@ -215,9 +211,8 @@ loadIdentityFromFile(HSM_CONFIG, process.env.NAB_ID_FILEPATH!).then(
     async (identity) => {
         const bot = new BotGraphVisualizer(identity);
         process.on('unhandledRejection', (reason, promise) => {
-            SmashMessaging.handleError(reason, promise, bot.logger);
+            SmashMessaging.handleError(reason, promise, bot.getLogger());
         });
-        await bot.initEndpoints([SME_CONFIG]);
-        return await bot.start();
+        return await bot.start([SME_CONFIG]);
     },
 );

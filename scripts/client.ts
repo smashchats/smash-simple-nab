@@ -1,10 +1,15 @@
 #!/usr/bin/env node
 import readline from 'readline';
-import {
+import type {
+    DID,
+    DIDDocument,
+    DIDString,
     SmashActionJson,
-    SmashDID,
+    SmashProfileList,
+} from 'smash-node-lib';
+import {
+    SMASH_NBH_PROFILE_LIST,
     SmashMessaging,
-    SmashProfile,
     SmashUser,
 } from 'smash-node-lib';
 
@@ -16,38 +21,43 @@ const rl = readline.createInterface({
 });
 
 let user: SmashUser;
-let nabDid: SmashDID;
+let nabDid: DIDDocument;
 
 SmashMessaging.setCrypto(crypto);
-const DICT: Record<string, string> = {};
+const DICT: Record<string, DIDDocument> = {};
 
-const printDID = (did: SmashDID) => {
-    const key = last4(did.ik);
-    if (!DICT[key]) DICT[key] = did.ik;
+const printDID = (did: DID) => {
+    const isStrDID = typeof did === 'string';
+    const key = last4(isStrDID ? did : did.id);
+    if (!DICT[key] && !isStrDID) DICT[key] = did as DIDDocument;
     return key;
 };
+
 const getDID = (key: string) => DICT[key] || key;
 
 const addDiscoverListener = (user: SmashUser, callback?: () => void) => {
-    user.once('nbh_profiles', async (sender, profiles: SmashProfile[]) => {
-        console.log(
-            '\n\n',
-            `Discovered profiles (${printDID(sender)}):`,
-            ...(await Promise.all(
-                profiles
-                    .toSorted(
-                        (a, b) =>
-                            (b.scores?.score ?? 0) - (a.scores?.score ?? 0),
-                    )
-                    .map(
-                        async (profile, index) =>
-                            `\n${index + 1}. (${Math.round(profile.scores!.score * 100)}) ${printDID(profile.did)} (${profile.meta?.title})`,
-                    ),
-            )),
-            '\n',
-        );
-        callback?.();
-    });
+    user.once(
+        SMASH_NBH_PROFILE_LIST,
+        async (sender, profiles: SmashProfileList) => {
+            console.log(
+                '\n\n',
+                `Discovered profiles (${printDID(sender)}):`,
+                ...(await Promise.all(
+                    profiles
+                        .toSorted(
+                            (a, b) =>
+                                (b.scores?.score ?? 0) - (a.scores?.score ?? 0),
+                        )
+                        .map(
+                            async (profile, index) =>
+                                `\n${index + 1}. (${Math.round(profile.scores!.score * 100)}) ${printDID(profile.did)} (${profile.meta?.title})`,
+                        ),
+                )),
+                '\n',
+            );
+            callback?.();
+        },
+    );
 };
 
 async function createUser(): Promise<SmashUser> {
@@ -65,7 +75,7 @@ async function joinNeighborhood(): Promise<void> {
             const joinInfo: SmashActionJson = JSON.parse(joinInfoStr);
             addDiscoverListener(user, displayMenu);
             await user.join(joinInfo);
-            nabDid = joinInfo.did;
+            nabDid = joinInfo.did as DIDDocument;
             console.log(
                 `Successfully queued request to join NBH ${printDID(nabDid)}`,
             );
@@ -98,16 +108,9 @@ async function performAction(
     }
 
     rl.question(
-        `Enter the DID (ik) of the target user to ${action}: `,
-        async (targetIk) => {
-            const targetDid: SmashDID = {
-                id: getDID(targetIk),
-                ik: getDID(targetIk),
-                ek: '',
-                signature: '',
-                endpoints: [],
-            };
-            await user[action](targetDid);
+        `Enter the DID (id) of the target user to ${action}: `,
+        async (targetDID) => {
+            await user[action](getDID(targetDID) as DIDString);
             console.log(
                 `\n${action.charAt(0).toUpperCase() + action.slice(1)} queued.\n`,
             );
@@ -159,7 +162,7 @@ async function handleMenuChoice(choice: string): Promise<void> {
                 await user.updateMeta({
                     title,
                     description: '',
-                    picture: '',
+                    avatar: '',
                 });
                 setTimeout(displayMenu, 1000);
             });
@@ -178,9 +181,7 @@ async function main() {
     console.log('Welcome to the NBH Client!');
     console.log('Creating a new user...');
     user = await createUser();
-    console.log(
-        `User ${await printDID(await user.getDID())} created successfully.`,
-    );
+    console.log(`User ${printDID(await user.getDID())} created successfully.`);
     displayMenu();
 }
 

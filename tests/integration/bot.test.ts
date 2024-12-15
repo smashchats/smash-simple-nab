@@ -1,10 +1,14 @@
+import type {
+    DIDDocument,
+    SmashActionJson,
+    SmashProfileList,
+} from 'smash-node-lib';
 import {
+    SMASH_NBH_JOIN,
+    SMASH_NBH_PROFILE_LIST,
     SMEConfig,
     SME_DEFAULT_CONFIG,
-    SmashActionJson,
-    SmashDID,
     SmashMessaging,
-    SmashProfile,
     SmashUser,
 } from 'smash-node-lib';
 
@@ -39,8 +43,8 @@ describe('NAB integration testing', () => {
             preKeyPair: botIdentity.signedPreKeys[0],
         };
         await bot.initEndpoints([SME_CONFIG]);
-        await bot.start();
-        joinInfoWithSME = await bot.nab.getJoinInfo([SME_CONFIG]);
+        await bot.printJoinInfo([SME_CONFIG]);
+        joinInfoWithSME = await bot.getJoinInfo([SME_CONFIG]);
         await delay(1000);
     });
 
@@ -52,7 +56,7 @@ describe('NAB integration testing', () => {
     });
 
     const userJoin = async (user: SmashUser) => {
-        const waitForBotJoinEvent = waitFor(bot!.nab, 'join');
+        const waitForBotJoinEvent = waitFor(bot!, SMASH_NBH_JOIN);
         await user.join(joinInfoWithSME!);
         await waitForBotJoinEvent;
     };
@@ -77,9 +81,9 @@ describe('NAB integration testing', () => {
 
         const NB_USERS = 4;
 
-        let bobDid: SmashDID;
-        let charlieDid: SmashDID;
-        let darcyDid: SmashDID;
+        let bobDid: DIDDocument;
+        let charlieDid: DIDDocument;
+        let darcyDid: DIDDocument;
 
         let initialScores: {
             bob: number | undefined;
@@ -89,13 +93,14 @@ describe('NAB integration testing', () => {
 
         const getAliceGrid = async () => {
             const waitForDiscover = new Promise((resolve) =>
-                alice.once('nbh_profiles', async (_, profiles) =>
-                    resolve(profiles),
+                alice.once(
+                    SMASH_NBH_PROFILE_LIST,
+                    async (_, profiles: SmashProfileList) => resolve(profiles),
                 ),
-            ) as Promise<SmashProfile[]>;
+            ) as Promise<SmashProfileList>;
             await alice.discover();
             const profiles = await waitForDiscover;
-            const findProfile = (did: SmashDID) =>
+            const findProfile = (did: DIDDocument) =>
                 profiles.find((p) => p.did.ik === did.ik)?.scores?.score;
             return {
                 bob: findProfile(bobDid),
@@ -150,7 +155,7 @@ describe('NAB integration testing', () => {
         });
 
         it('can join', async () => {
-            expect(Object.values(bot!.profiles).length).toBe(NB_USERS);
+            expect(Object.keys(bot!.profiles).length).toBe(NB_USERS);
         });
 
         it('can discover each others through the NAB', () => {
