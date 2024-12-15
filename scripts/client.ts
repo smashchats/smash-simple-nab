@@ -3,7 +3,6 @@ import readline from 'readline';
 import type {
     DID,
     DIDDocument,
-    DIDString,
     SmashActionJson,
     SmashProfileList,
 } from 'smash-node-lib';
@@ -110,7 +109,7 @@ async function performAction(
     rl.question(
         `Enter the DID (id) of the target user to ${action}: `,
         async (targetDID) => {
-            await user[action](getDID(targetDID) as DIDString);
+            await user[action](getDID(targetDID) as DID);
             console.log(
                 `\n${action.charAt(0).toUpperCase() + action.slice(1)} queued.\n`,
             );
