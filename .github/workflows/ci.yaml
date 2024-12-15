@@ -1,0 +1,33 @@
+name: CI/CD Pipeline
+
+on:
+    push:
+        branches: ['main'] # Trigger on push to the main branch
+    pull_request:
+        branches: ['main'] # Trigger on pull requests to the main branch
+
+jobs:
+    tests:
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+                  persist-credentials: false
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '22.x'
+
+            - name: Clone smash-node-lib dependency
+              run: git clone --depth 1 https://github.com/smashchats/smash-node-lib.git
+
+            - name: Install Lib Dependencies
+              run: cd smash-node-lib && npm ci && cd ..
+
+            - name: Install Dependencies
+              run: npm ci
+
+            - name: Run Tests
+              run: npm run test:ci -- --coverage
