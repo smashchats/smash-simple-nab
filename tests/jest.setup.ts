@@ -1,7 +1,7 @@
 import { Logger, SmashMessaging } from 'smash-node-lib';
 
 const logger = new Logger('jest', 'INFO');
-jest.setTimeout(12000);
+jest.setTimeout(2000);
 
 type Process = NodeJS.Process & { actual: NodeJS.Process };
 
