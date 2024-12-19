@@ -4,6 +4,7 @@ import type {
     DIDDocument,
     DIDString,
     IMProfile,
+    IMProfileMessage,
     ISO8601,
     Identity,
     Logger,
@@ -14,7 +15,12 @@ import type {
     SmashProfileList,
     sha256,
 } from 'smash-node-lib';
-import { DIDResolver, SmashNAB } from 'smash-node-lib';
+import {
+    DIDResolver,
+    DataForwardingResolver,
+    IM_PROFILE,
+    SmashNAB,
+} from 'smash-node-lib';
 
 import SocialGraph from './graph.js';
 
@@ -32,7 +38,7 @@ export class Bot extends SmashNAB {
     public readonly profiles: Record<
         UserID,
         {
-            did: DIDDocument;
+            did: DIDDocument | undefined;
             meta: Partial<Omit<IMProfile, 'avatar'>> | undefined;
         }
     > = {};
@@ -59,6 +65,15 @@ export class Bot extends SmashNAB {
         // TODO add itself to the graph??
     }
 
+    registerHooks() {
+        super.registerHooks();
+        this.register(
+            `data.${IM_PROFILE}`,
+            new DataForwardingResolver<IMProfileMessage>(IM_PROFILE),
+        );
+        this.on(`data.${IM_PROFILE}`, this.onProfile.bind(this));
+    }
+
     public async printJoinInfo(smes: SMEConfigJSONWithoutDefaults[] = []) {
         const joinInfo = await this.getJoinInfo(smes);
         this.logger.info('JOIN INFO:');
@@ -70,8 +85,8 @@ export class Bot extends SmashNAB {
         await this.sendMessage(did, {
             type: 'com.smashchats.profiles',
             data: this.graph.getScores().map((node) => ({
-                ...this.profiles[node.id].meta,
                 did: this.profiles[node.id].did,
+                meta: this.profiles[node.id].meta,
                 scores: { score: node.score },
             })) as SmashProfileList,
             after: '0',
@@ -80,6 +95,12 @@ export class Bot extends SmashNAB {
 
     public async stop() {
         await this.close();
+    }
+
+    async onProfile(from: DIDString, profile: IMProfile) {
+        const id: UserID = last4(from);
+        this.logger.debug(`> ${id} updated their profile`);
+        this.updateStoredProfile(id, profile);
     }
 
     async onJoin(from: DIDString, did: DIDDocument) {
@@ -93,7 +114,12 @@ export class Bot extends SmashNAB {
     async onDiscover(from: DIDString) {
         const id = last4(from);
         this.logger.debug(`> discovery ${id}`);
-        await this.sendUsersToSession(this.profiles[id]!.did);
+        if (this.profiles[id] && this.profiles[id].did)
+            await this.sendUsersToSession(this.profiles[id].did);
+        else
+            this.logger.error(
+                `cannot send profiles to ${id} because they are not registered`,
+            );
     }
 
     async onRelationship(
@@ -138,26 +164,34 @@ export class Bot extends SmashNAB {
         }
     }
 
-    private async updateStoredDID(id: UserID, did: DID) {
-        this.profiles[id] = {
-            did: await DIDResolver.resolve(did),
-            meta: undefined,
-        };
+    private getOrCreateProfile(id: UserID) {
+        if (!this.profiles[id]) {
+            this.profiles[id] = {
+                did: undefined,
+                meta: undefined,
+            };
+        }
+        return this.profiles[id];
     }
 
-    // private updateStoredProfile(
-    //     id: UserID,
-    //     partialProfile: Partial<IMProfile>,
-    // ) {
-    //     // do not store the base64 profile picture for now (performance/efficiency)
-    //     // 1. later, this should be replaced with proper distributed storage
-    //     // 2. full profile will be sent directly from peer to peer
-    //     delete partialProfile.avatar;
-    //     this.profiles[id].meta = {
-    //         ...this.profiles[id].meta,
-    //         ...partialProfile,
-    //     };
-    // }
+    private async updateStoredDID(id: UserID, did: DID) {
+        this.getOrCreateProfile(id).did = await DIDResolver.resolve(did);
+    }
+
+    private updateStoredProfile(
+        id: UserID,
+        partialProfile: Partial<IMProfile>,
+    ) {
+        // do not store the base64 profile picture for now (performance/efficiency)
+        // 1. later, this should be replaced with proper distributed storage
+        // 2. full profile will be sent directly from peer to peer
+        delete partialProfile.avatar;
+        const profile = this.getOrCreateProfile(id);
+        profile.meta = {
+            ...profile.meta,
+            ...partialProfile,
+        };
+    }
 
     public getLogger(): Logger {
         return this.logger;

@@ -2,6 +2,7 @@
 import readline from 'readline';
 import type {
     DIDDocument,
+    DIDString,
     SmashActionJson,
     SmashProfileList,
 } from 'smash-node-lib';
@@ -43,20 +44,24 @@ const printDID = (did: DIDDocument) => {
 
 async function createTestUser(name: string): Promise<TestUser> {
     const identity = await SmashMessaging.generateIdentity();
-    const user = new SmashUser(identity, undefined, 'INFO', name);
-    await user.updateMeta({ title: name, description: '', avatar: '' });
+    const user = new SmashUser(
+        identity,
+        { title: name, description: '', avatar: '' },
+        'INFO',
+        name,
+    );
     const did = await user.getDID();
     user.on(
         SMASH_NBH_PROFILE_LIST,
-        async (sender, profiles: SmashProfileList) => {
+        async (sender: DIDString, profiles: SmashProfileList) => {
             console.log(
-                `\n${name} discovered profiles from ${printDID(sender)}:`,
+                `\n${name} discovered profiles from ${last4(sender)}:`,
                 ...(await Promise.all(
                     profiles
                         .toSorted((a, b) => b.scores!.score - a.scores!.score)
                         .map(
                             async (profile, index) =>
-                                `\n${index + 1}. (${Math.round(profile.scores!.score * 100)}) ${printDID(profile.did)} (${profile.meta?.title})`,
+                                `\n${index + 1}. (${Math.round(profile.scores!.score * 100)}) ${printDID(profile.did)} (${profile?.meta?.title})`,
                         ),
                 )),
                 '\n',

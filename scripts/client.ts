@@ -3,6 +3,7 @@ import readline from 'readline';
 import type {
     DID,
     DIDDocument,
+    DIDString,
     SmashActionJson,
     SmashProfileList,
 } from 'smash-node-lib';
@@ -28,16 +29,17 @@ const DICT: Record<string, DIDDocument> = {};
 const printDID = (did: DID) => {
     const isStrDID = typeof did === 'string';
     const key = last4(isStrDID ? did : did.id);
-    if (!DICT[key] && !isStrDID) DICT[key] = did as DIDDocument;
+    if (!isStrDID) DICT[key] = did as DIDDocument;
     return key;
 };
 
-const getDID = (key: string) => DICT[key] || key;
+const getDID = (key: string): DID =>
+    (DICT[key] as DIDDocument) || (key as DIDString);
 
 const addDiscoverListener = (user: SmashUser, callback?: () => void) => {
     user.once(
         SMASH_NBH_PROFILE_LIST,
-        async (sender, profiles: SmashProfileList) => {
+        async (sender: DIDString, profiles: SmashProfileList) => {
             console.log(
                 '\n\n',
                 `Discovered profiles (${printDID(sender)}):`,
@@ -49,7 +51,7 @@ const addDiscoverListener = (user: SmashUser, callback?: () => void) => {
                         )
                         .map(
                             async (profile, index) =>
-                                `\n${index + 1}. (${Math.round(profile.scores!.score * 100)}) ${printDID(profile.did)} (${profile.meta?.title})`,
+                                `\n${index + 1}. (${Math.round(profile.scores!.score * 100)}) ${printDID(profile.did)} (${profile?.meta?.title})`,
                         ),
                 )),
                 '\n',
@@ -61,9 +63,9 @@ const addDiscoverListener = (user: SmashUser, callback?: () => void) => {
 
 async function createUser(): Promise<SmashUser> {
     const identity = await SmashMessaging.generateIdentity();
-    const user = new SmashUser(identity, undefined, 'INFO');
+    const user = new SmashUser(identity, undefined, 'DEBUG', 'client');
     user.on('data', (message) => {
-        console.info('\n\nReceived message:', JSON.stringify(message, null, 2));
+        console.info('\n\nReceived data:', JSON.stringify(message, null, 2));
     });
     return user;
 }
