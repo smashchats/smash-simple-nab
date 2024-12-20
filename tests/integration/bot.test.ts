@@ -35,7 +35,7 @@ describe('NAB integration testing', () => {
 
     beforeEach(async () => {
         const botIdentity = await SmashMessaging.generateIdentity();
-        bot = new Bot(botIdentity);
+        bot = new Bot(botIdentity, 'TestNAB', 'DEBUG');
         const SME_CONFIG: SMEConfig = {
             ...SME_DEFAULT_CONFIG,
             url: socketServerUrl,
@@ -45,15 +45,16 @@ describe('NAB integration testing', () => {
         await bot.setEndpoints([SME_CONFIG]);
         await bot.printJoinInfo([SME_CONFIG]);
         joinInfoWithSME = await bot.getJoinInfo([SME_CONFIG]);
-        await delay(1000);
+        await delay(500);
     });
 
     afterEach(async () => {
+        await delay(1000);
         await bot?.stop();
         jest.resetAllMocks();
         bot = undefined;
         joinInfoWithSME = undefined;
-    });
+    }, 5000);
 
     const userJoin = async (user: SmashUser) => {
         const waitForBotJoinEvent = waitFor(bot!, SMASH_NBH_JOIN);
@@ -70,6 +71,7 @@ describe('NAB integration testing', () => {
         );
         await userJoin(user);
         expect(Object.values(bot!.profiles).length).toBe(1);
+        await delay(1000);
         await user.close();
     });
 
@@ -148,6 +150,7 @@ describe('NAB integration testing', () => {
         });
 
         afterEach(async () => {
+            await delay(1000);
             await alice.close();
             await bob.close();
             await charlie.close();
