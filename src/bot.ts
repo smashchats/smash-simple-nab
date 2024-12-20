@@ -7,6 +7,7 @@ import type {
     IMProfileMessage,
     ISO8601,
     Identity,
+    LogLevel,
     Logger,
     Relationship,
     SMEConfigJSONWithoutDefaults,
@@ -56,7 +57,7 @@ export class Bot extends SmashNAB {
     constructor(
         identity: Identity,
         name: string = 'NAB',
-        logLevel = 'DEBUG' as const,
+        logLevel = 'INFO' as LogLevel,
         meta: IMProfile | undefined = undefined,
     ) {
         super(identity, meta, logLevel, name);
