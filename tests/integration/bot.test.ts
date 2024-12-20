@@ -13,7 +13,7 @@ import {
 } from 'smash-node-lib';
 
 import { Bot } from '../../src/bot.js';
-import { socketServerUrl } from '../jest.global.cjs';
+import { SME_PUBLIC_KEY, socketServerUrl } from '../jest.global.cjs';
 
 const waitFor = (peer: SmashMessaging, event: string) => {
     return new Promise((resolve) => peer.once(event, resolve));
@@ -39,10 +39,10 @@ describe('NAB integration testing', () => {
         const SME_CONFIG: SMEConfig = {
             ...SME_DEFAULT_CONFIG,
             url: socketServerUrl,
-            smePublicKey: 'dummyKey',
+            smePublicKey: SME_PUBLIC_KEY,
             preKeyPair: botIdentity.signedPreKeys[0],
         };
-        await bot.initEndpoints([SME_CONFIG]);
+        await bot.setEndpoints([SME_CONFIG]);
         await bot.printJoinInfo([SME_CONFIG]);
         joinInfoWithSME = await bot.getJoinInfo([SME_CONFIG]);
         await delay(1000);

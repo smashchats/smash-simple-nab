@@ -116,7 +116,7 @@ class BotGraphVisualizer extends Bot {
     }
 
     public async start(smes: SMEConfig[]) {
-        await this.initEndpoints(smes);
+        await this.setEndpoints(smes);
         await this.printJoinInfo(smes);
         this.setupGraphVisualization();
     }
