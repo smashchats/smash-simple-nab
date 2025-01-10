@@ -2,7 +2,7 @@
 import { IECKeyPair, setEngine } from '2key-ratchet';
 import 'dotenv/config';
 import { Crypto as CryptoP11 } from 'node-webcrypto-p11';
-import { SmashMessaging } from 'smash-node-lib';
+import { DIDDocManager, SmashMessaging } from 'smash-node-lib';
 import { SPLITTER } from 'src/crypto.js';
 
 const sleep = (ms: number) =>
@@ -15,22 +15,13 @@ async function main() {
         console.error('HSM_CONFIG missing.');
         return process.exit(1);
     }
+
+    const SKIP_CLEAR_STORAGE = !!process.argv[2] || false;
+
     const config = JSON.parse(process.env.HSM_CONFIG);
     const c = new CryptoP11(config);
     setEngine('@peculiar/webcrypto', c as unknown as Crypto);
-
-    // const NODE_PATH = process.argv[0];
-    // const SCRIPT_PATH = process.argv[1];
-    if (process.argv.length < 3) {
-        console.error(
-            'usage: npm run identity <DID> <NB_PREKEYS> <NB_ONETIMEKEYS>',
-        );
-        return process.exit(1);
-    }
-
-    const NB_PREKEYS = parseInt(process.argv[3] || '0');
-    const NB_ONETIME = parseInt(process.argv[4] || '0');
-    const SKIP_CLEAR_STORAGE = !!process.argv[5] || false;
+    SmashMessaging.setCrypto(c as unknown as Crypto);
 
     // CLEAR STORAGE
     if (!SKIP_CLEAR_STORAGE) {
@@ -44,12 +35,10 @@ async function main() {
         await c.keyStorage.clear();
     }
 
-    // generate new Identity, generating as many pre-keys and one-time pre-keys as requested
-    SmashMessaging.setCrypto(c);
-    const identity = await SmashMessaging.generateIdentity(
-        NB_PREKEYS,
-        NB_ONETIME,
-    );
+    const didDocManager = new DIDDocManager();
+    SmashMessaging.use(didDocManager);
+    const identity = await didDocManager.generate();
+    await didDocManager.generateNewPreKeyPair(identity);
 
     // persisting all the newly created keys to HSM
     const persistKeyPairToHSMStorage = async (key: IECKeyPair) => {

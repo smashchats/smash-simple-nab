@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 import readline from 'readline';
 import type {
+    DID,
     DIDDocument,
     DIDString,
     SmashActionJson,
     SmashProfileList,
 } from 'smash-node-lib';
 import {
-    SMASH_NBH_PROFILE_LIST,
+    DIDDocManager,
+    NBH_PROFILE_LIST,
     SmashMessaging,
     SmashUser,
 } from 'smash-node-lib';
-
-import { last4 } from '../src/bot.js';
 
 const rl = readline.createInterface({
     input: process.stdin,
@@ -35,27 +35,22 @@ type TestUser = {
     did?: DIDDocument;
 };
 
-const DICT: Record<string, string> = {};
-const printDID = (did: DIDDocument) => {
-    const key = last4(did.ik);
-    if (!DICT[key]) DICT[key] = did.ik;
-    return key;
+const didDocManager = new DIDDocManager();
+SmashMessaging.use(didDocManager);
+
+const printDID = (did: DID) => {
+    return typeof did === 'string' ? did : did.id;
 };
 
 async function createTestUser(name: string): Promise<TestUser> {
-    const identity = await SmashMessaging.generateIdentity();
-    const user = new SmashUser(
-        identity,
-        { title: name, description: '', avatar: '' },
-        'INFO',
-        name,
-    );
-    const did = await user.getDID();
+    const identity = await didDocManager.generate();
+    const user = new SmashUser(identity, name, 'INFO');
+    await user.updateMeta({ title: name, description: '', avatar: '' });
     user.on(
-        SMASH_NBH_PROFILE_LIST,
+        NBH_PROFILE_LIST,
         async (sender: DIDString, profiles: SmashProfileList) => {
             console.log(
-                `\n${name} discovered profiles from ${last4(sender)}:`,
+                `\n${name} discovered profiles from ${sender}:`,
                 ...(await Promise.all(
                     profiles
                         .toSorted((a, b) => b.scores!.score - a.scores!.score)
@@ -68,7 +63,7 @@ async function createTestUser(name: string): Promise<TestUser> {
             );
         },
     );
-    return { name, user, did };
+    return { name, user, did: await user.getDIDDocument() };
 }
 
 async function main() {

@@ -1,78 +1,55 @@
 import 'dotenv/config';
 import type {
-    DID,
     DIDDocument,
     DIDString,
+    IMPeerIdentity,
     IMProfile,
     IMProfileMessage,
     ISO8601,
-    Identity,
     LogLevel,
     Logger,
     Relationship,
     SMEConfigJSONWithoutDefaults,
-    SmashChatProfileListMessage,
-    SmashChatRelationshipData,
     SmashProfileList,
     sha256,
 } from 'smash-node-lib';
-import {
-    DIDResolver,
-    DataForwardingResolver,
-    IM_PROFILE,
-    SmashNAB,
-} from 'smash-node-lib';
+import { IM_PROFILE, SmashNAB } from 'smash-node-lib';
 
 import SocialGraph from './graph.js';
 
-export const last4 = (base64str: string) => {
-    const str = base64str.replaceAll('=', '');
-    return str.substring(str.length - 4, str.length);
-};
-export type UserID = ReturnType<typeof last4>;
-
 // TODO persist (file?): signal sessions, users graph (state),
-// TODO handle session restart when invalid data (eg, lost context, refreshed keys)
+
 export class Bot extends SmashNAB {
     protected graph: SocialGraph;
 
-    public readonly profiles: Record<
-        UserID,
-        {
-            did: DIDDocument | undefined;
-            meta: Partial<Omit<IMProfile, 'avatar'>> | undefined;
-        }
-    > = {};
-    public readonly relationships: Record<
-        UserID,
-        Record<
-            UserID,
+    public readonly users = new Map<DIDString, DIDDocument>();
+    public readonly profiles = new Map<
+        DIDString,
+        Partial<Omit<IMProfile, 'avatar'>>
+    >();
+    public readonly relationships = new Map<
+        DIDString,
+        Map<
+            DIDString,
             {
                 time: Date;
                 state: Relationship;
             }
         >
-    > = {};
+    >();
 
     constructor(
-        identity: Identity,
+        identity: IMPeerIdentity,
         name: string = 'NAB',
         logLevel = 'INFO' as LogLevel,
-        meta: IMProfile | undefined = undefined,
     ) {
-        super(identity, meta, logLevel, name);
+        super(identity, name, logLevel);
         this.graph = new SocialGraph(this.getLogger());
-        this.registerHooks();
         // TODO add itself to the graph??
-    }
-
-    registerHooks() {
-        super.registerHooks();
-        this.register(
-            `data.${IM_PROFILE}`,
-            new DataForwardingResolver<IMProfileMessage>(IM_PROFILE),
-        );
-        this.on(`data.${IM_PROFILE}`, this.onProfile.bind(this));
+        this.on(IM_PROFILE, (did: DIDString, profile: IMProfileMessage) => {
+            this.logger.debug(`> ${did} updated their profile`);
+            this.updateStoredProfile(did, profile.data);
+        });
     }
 
     public async printJoinInfo(smes: SMEConfigJSONWithoutDefaults[] = []) {
@@ -82,116 +59,117 @@ export class Bot extends SmashNAB {
     }
 
     // TODO support multiple distances/scores
-    private async sendUsersToSession(did: DIDDocument) {
-        await this.sendMessage(did, {
-            type: 'com.smashchats.profiles',
-            data: this.graph.getScores().map((node) => ({
-                did: this.profiles[node.id].did,
-                meta: this.profiles[node.id].meta,
+    // TODO personalized to requesting user
+    private discoverUsersFor(): SmashProfileList {
+        return this.graph
+            .getScores()
+            .filter((node) => this.users.get(node.id)?.id)
+            .map((node) => ({
+                did: this.users.get(node.id)!,
+                meta: this.profiles.get(node.id),
                 scores: { score: node.score },
-            })) as SmashProfileList,
-            after: '0',
-        } as SmashChatProfileListMessage);
+            }));
     }
 
     public async stop() {
         await this.close();
     }
 
-    async onProfile(from: DIDString, profile: IMProfile) {
-        const id: UserID = last4(from);
-        this.logger.debug(`> ${id} updated their profile`);
-        this.updateStoredProfile(id, profile);
-    }
-
-    async onJoin(from: DIDString, did: DIDDocument) {
-        const id: UserID = last4(from);
-        this.logger.debug(`> ${id} joined`);
-        this.relationships[id] = { ...this.relationships[id] };
-        this.updateStoredDID(id, did);
+    async onJoin(didDocument: DIDDocument) {
+        const id: DIDString = didDocument.id;
+        this.relationships.set(id, new Map(this.relationships.get(id) ?? []));
+        this.updateStoredDID(id, didDocument);
         this.graph.getOrCreate(id);
+        this.logger.debug(`> ${id} joined`);
     }
 
-    async onDiscover(from: DIDString) {
-        const id = last4(from);
-        this.logger.debug(`> discovery ${id}`);
-        if (this.profiles[id] && this.profiles[id].did)
-            await this.sendUsersToSession(this.profiles[id].did);
-        else
+    async onDiscover(fromDID: DIDString): Promise<SmashProfileList> {
+        this.logger.debug(`> discovery ${fromDID}`);
+        if (this.users.get(fromDID)?.id) {
+            return this.discoverUsersFor();
+        } else {
             this.logger.error(
-                `cannot send profiles to ${id} because they are not registered`,
+                `cannot send profiles to ${fromDID} because they are not registered`,
             );
+            throw new Error(
+                `cannot send profiles to ${fromDID} because they are not registered`,
+            );
+        }
     }
 
     async onRelationship(
-        from: DIDString,
-        { target, action }: SmashChatRelationshipData,
-        _: sha256,
-        timeString: ISO8601,
+        fromDID: DIDString,
+        toDID: DIDString,
+        relationship: Relationship,
+        _messageHash?: sha256,
+        timestamp?: ISO8601,
     ) {
-        const time = new Date(timeString);
-        const id = last4(from) as UserID;
-        const targetId = last4(target) as UserID;
-        if (from === target)
-            return this.logger.info(`> ignoring self ${action} from ${id}`);
+        const time = new Date(timestamp!);
+        if (fromDID === toDID) {
+            return this.logger.info(
+                `> ignoring self ${relationship} from ${fromDID}`,
+            );
+        }
         this.logger.debug(
-            `> ${id} --> ${action} --> ${targetId} (${time.toLocaleTimeString()})`,
+            `> ${fromDID} --> ${relationship} --> ${toDID} (${time.toLocaleTimeString()})`,
         );
-        const currentState = this.relationships[id][targetId];
-        if (currentState && currentState.time > time)
+        const currentState = this.relationships.get(fromDID)?.get(toDID);
+        if (currentState && currentState.time > time) {
             return this.logger.debug(
                 `current state (${currentState.state}) is newer (${currentState.time.toLocaleString()})`,
             );
-        else
-            this.relationships[id][targetId] = {
-                state: action,
+        } else {
+            if (!this.relationships.has(fromDID)) {
+                this.relationships.set(fromDID, new Map());
+            }
+            this.relationships.get(fromDID)!.set(toDID, {
+                state: relationship,
                 time,
-            };
-        switch (action) {
+            });
+        }
+        switch (relationship) {
             case 'smash':
-                this.graph.connectDirected(id, targetId);
+                this.graph.connectDirected(fromDID, toDID);
                 break;
             case 'pass':
             case 'block':
-                this.graph.disconnectDirected(id, targetId);
+                this.graph.disconnectDirected(fromDID, toDID);
                 break;
             case 'clear':
-                this.graph.resetEdges(id, targetId);
+                this.graph.resetEdges(fromDID, toDID);
                 break;
             default:
                 this.logger.warn(
-                    `unknown action! (${action as never} from ${id})`,
+                    `unknown relationship! (${relationship as never} from ${fromDID})`,
                 );
         }
     }
 
-    private getOrCreateProfile(id: UserID) {
-        if (!this.profiles[id]) {
-            this.profiles[id] = {
-                did: undefined,
-                meta: undefined,
-            };
-        }
-        return this.profiles[id];
-    }
-
-    private async updateStoredDID(id: UserID, did: DID) {
-        this.getOrCreateProfile(id).did = await DIDResolver.resolve(did);
+    private updateStoredDID(id: DIDString, did: DIDDocument) {
+        this.users.set(id, { ...this.users.get(id), ...did });
+        this.logger.debug(`> ${id} updated their DID (${this.users.size})`);
+        this.logger.debug(JSON.stringify(this.users.get(id)));
     }
 
     private updateStoredProfile(
-        id: UserID,
+        id: DIDString,
         partialProfile: Partial<IMProfile>,
     ) {
         // do not store the base64 profile picture for now (performance/efficiency)
         // 1. later, this should be replaced with proper distributed storage
         // 2. full profile will be sent directly from peer to peer
         delete partialProfile.avatar;
-        const profile = this.getOrCreateProfile(id);
-        profile.meta = {
-            ...profile.meta,
+        // update DID document with directly shared, IF full doc is present
+        if (partialProfile.did && typeof partialProfile.did === 'object') {
+            this.updateStoredDID(id, partialProfile.did);
+        }
+        // complete stored profile with shared data (ASSUMING IT'S PUBLIC!)
+        this.profiles.set(id, {
+            ...(this.profiles.get(id) ?? {}),
             ...partialProfile,
-        };
+        });
+        this.logger.debug(`> ${id} updated their profile`);
+        this.logger.debug(JSON.stringify(this.profiles.get(id)));
     }
 
     public getLogger(): Logger {

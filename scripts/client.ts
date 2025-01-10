@@ -8,12 +8,11 @@ import type {
     SmashProfileList,
 } from 'smash-node-lib';
 import {
-    SMASH_NBH_PROFILE_LIST,
+    DIDDocManager,
+    NBH_PROFILE_LIST,
     SmashMessaging,
     SmashUser,
 } from 'smash-node-lib';
-
-import { last4 } from '../src/bot.js';
 
 const rl = readline.createInterface({
     input: process.stdin,
@@ -21,14 +20,17 @@ const rl = readline.createInterface({
 });
 
 let user: SmashUser;
-let nabDid: DIDDocument;
+let nabDIDdocument: DIDDocument;
 
 SmashMessaging.setCrypto(crypto);
+const didDocManager = new DIDDocManager();
+SmashMessaging.use(didDocManager);
+
 const DICT: Record<string, DIDDocument> = {};
 
 const printDID = (did: DID) => {
     const isStrDID = typeof did === 'string';
-    const key = last4(isStrDID ? did : did.id);
+    const key = isStrDID ? did : did.id;
     if (!isStrDID) DICT[key] = did as DIDDocument;
     return key;
 };
@@ -38,7 +40,7 @@ const getDID = (key: string): DID =>
 
 const addDiscoverListener = (user: SmashUser, callback?: () => void) => {
     user.once(
-        SMASH_NBH_PROFILE_LIST,
+        NBH_PROFILE_LIST,
         async (sender: DIDString, profiles: SmashProfileList) => {
             console.log(
                 '\n\n',
@@ -62,8 +64,8 @@ const addDiscoverListener = (user: SmashUser, callback?: () => void) => {
 };
 
 async function createUser(): Promise<SmashUser> {
-    const identity = await SmashMessaging.generateIdentity();
-    const user = new SmashUser(identity, undefined, 'DEBUG', 'client');
+    const identity = await didDocManager.generate();
+    const user = new SmashUser(identity, 'client', 'DEBUG');
     user.on('data', (message) => {
         console.info('\n\nReceived data:', JSON.stringify(message, null, 2));
     });
@@ -74,11 +76,13 @@ async function joinNeighborhood(): Promise<void> {
     rl.question('Enter NAB JOIN info (JSON string): ', async (joinInfoStr) => {
         try {
             const joinInfo: SmashActionJson = JSON.parse(joinInfoStr);
+            nabDIDdocument = joinInfo.did as DIDDocument;
+            didDocManager.set(nabDIDdocument);
             addDiscoverListener(user, displayMenu);
             await user.join(joinInfo);
-            nabDid = joinInfo.did as DIDDocument;
+            didDocManager.set(await user.getDIDDocument());
             console.log(
-                `Successfully queued request to join NBH ${printDID(nabDid)}`,
+                `Successfully queued request to join NBH ${printDID(nabDIDdocument)}`,
             );
         } catch (error) {
             console.error('Error joining neighborhood:', error);
@@ -89,7 +93,7 @@ async function joinNeighborhood(): Promise<void> {
 }
 
 async function discoverProfiles(): Promise<void> {
-    if (!nabDid) {
+    if (!nabDIDdocument) {
         console.log('Please join a neighborhood first.');
         displayMenu();
         return;
@@ -102,7 +106,7 @@ async function discoverProfiles(): Promise<void> {
 async function performAction(
     action: 'smash' | 'pass' | 'clear',
 ): Promise<void> {
-    if (!nabDid) {
+    if (!nabDIDdocument) {
         console.log('Please join a neighborhood first.');
         displayMenu();
         return;
@@ -151,12 +155,8 @@ async function handleMenuChoice(choice: string): Promise<void> {
             await performAction('clear');
             break;
         case '6':
-            user.getDID()
-                .then((did) => printDID(did))
-                .then((key) => {
-                    console.log(`\n\nYour DID: ${key}\n`);
-                    displayMenu();
-                });
+            console.log(`\n\nYour DID: ${user.did}\n`);
+            displayMenu();
             break;
         case '7':
             rl.question(`Set title: `, async (title) => {
@@ -182,7 +182,9 @@ async function main() {
     console.log('Welcome to the NBH Client!');
     console.log('Creating a new user...');
     user = await createUser();
-    console.log(`User ${printDID(await user.getDID())} created successfully.`);
+    console.log(
+        `User ${printDID(await user.getDIDDocument())} created successfully.`,
+    );
     displayMenu();
 }
 

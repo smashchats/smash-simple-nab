@@ -1,37 +1,23 @@
 #!/bin/node
 import { IdentityProtocol, setEngine } from '2key-ratchet';
-import { SmashMessaging } from '@src/index.js';
+import { DIDDocManager, SmashMessaging } from 'smash-node-lib';
 
 async function main() {
-    if (process.argv.length < 3) {
-        console.error(
-            'usage: npm run identity <ID> <NB_PREKEYS> <NB_ONETIMEKEYS>',
-        );
-        return process.exit(1);
-    }
-    // const NODE_PATH = process.argv[0];
-    // const SCRIPT_PATH = process.argv[1];
-    const NB_PREKEYS = parseInt(process.argv[3] || '0');
-    const NB_ONETIME = parseInt(process.argv[4] || '0');
     setEngine('@peculiar/webcrypto', crypto);
-    const identity = await SmashMessaging.generateIdentity(
-        NB_PREKEYS,
-        NB_ONETIME,
-        true,
-    );
-    const theBourneIdentity = JSON.stringify(
-        await SmashMessaging.serializeIdentity(identity),
-    );
+    SmashMessaging.setCrypto(crypto);
+    const didDocManager = new DIDDocManager();
+    SmashMessaging.use(didDocManager);
+
+    const identity = await didDocManager.generate();
+    const theBourneIdentity = await identity.serialize();
     console.log(theBourneIdentity);
-    console.warn(
-        `New identity ${identity.id} generated with ${identity.preKeys.length} one-time prekeys and ${identity.signedPreKeys.length} prekeys.`,
-    );
+    console.warn(`New identity ${identity.did} generated.`);
 
     const testProtocolExported = await IdentityProtocol.fill(identity);
     const testProtocolExportedSignature = testProtocolExported.signature;
-    const importedIdentity = await SmashMessaging.deserializeIdentity(
-        JSON.parse(theBourneIdentity),
-    );
+    const importedIdentity =
+        await SmashMessaging.importIdentity(theBourneIdentity);
+
     const testProtocolImported = await IdentityProtocol.fill(importedIdentity);
     if (!(await testProtocolImported.verify())) {
         console.error(`Exported identity is inconsistent!`);

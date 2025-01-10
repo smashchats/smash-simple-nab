@@ -1,23 +1,18 @@
 import 'dotenv/config';
-import express, { Response } from 'express';
 import * as fs from 'fs';
 import { ObjectClass } from 'graphene-pk11';
 import http from 'http';
 import { CryptoParams } from 'node-webcrypto-p11';
-import type { IMProfile, Identity, SMEConfig } from 'smash-node-lib';
-import { ECPublicKey, SmashMessaging } from 'smash-node-lib';
+import type {
+    IIMPeerIdentity,
+    IMPeerIdentity,
+    IMProfile,
+    SMEConfig,
+} from 'smash-node-lib';
+import { DIDDocManager, ECPublicKey, SmashMessaging } from 'smash-node-lib';
 
 import { Bot } from './bot.js';
 import { CryptoP11, SPLITTER } from './crypto.js';
-
-interface IJsonIdentity {
-    id: number;
-    signingKey: CryptoKeyPair;
-    exchangeKey: CryptoKeyPair;
-    preKeys: CryptoKeyPair[];
-    signedPreKeys: CryptoKeyPair[];
-    createdAt: string;
-}
 
 const checkEnvironmentVariables = (requiredVars: string[]): boolean => {
     let errors = 0;
@@ -66,16 +61,14 @@ const retrieveKeysFromStorage = async (
 const loadIdentityFromFile = (
     hsmConfig: unknown,
     filepath: string,
-): Promise<Identity> => {
+): Promise<IMPeerIdentity> => {
     return new Promise((resolve) => {
         fs.readFile(filepath, 'utf8', async (error, data) => {
             if (error) return console.error(error);
-
             const hsmIdentity = JSON.parse(data) as {
-                identity: IJsonIdentity;
+                identity: IIMPeerIdentity;
                 map: string[][];
             };
-
             const keysMapping = new Map<string, string>(
                 hsmIdentity.map as Iterable<[string, string]>,
             );
@@ -83,12 +76,11 @@ const loadIdentityFromFile = (
             const c = new CryptoP11(hsmConfig as CryptoParams);
             SmashMessaging.setCrypto(c as unknown as Crypto);
 
-            const identity = await SmashMessaging.deserializeIdentity(
+            const identity = await SmashMessaging.importIdentity(
                 hsmIdentity.identity,
                 async (keys: CryptoKeyPair & { thumbprint?: string }) =>
                     retrieveKeysFromStorage(c, keys, keysMapping),
             );
-
             resolve(identity);
         });
     });
@@ -110,106 +102,77 @@ const NAB_META = JSON.parse(process.env.NAB_META!) as IMProfile;
 
 class BotGraphVisualizer extends Bot {
     private server?: http.Server;
-
-    constructor(identity: Identity) {
-        super(identity, 'NAB', 'DEBUG', NAB_META);
-    }
+    private started: boolean = false;
+    private closed: boolean = false;
 
     public async start(smes: SMEConfig[]) {
-        await this.setEndpoints(smes);
+        this.logger.debug('Starting BotGraphVisualizer...');
+        this.logger.debug(
+            `Current state - started: ${this.started}, closed: ${this.closed}`,
+        );
+
+        if (this.started || this.closed) {
+            this.logger.error(
+                `Bot already ${this.started ? 'started' : 'closed'}`,
+            );
+            return;
+        }
+
+        this.logger.debug('Initializing DIDDocManager...');
+        const didDocManager = new DIDDocManager();
+        SmashMessaging.use(didDocManager);
+        didDocManager.set(await this.identity.getDIDDocument());
+
+        this.logger.debug(`Connecting to ${smes.length} SME endpoints...`);
+        await Promise.all(
+            smes.map(async (sme) => {
+                this.logger.debug(
+                    `Generating new pre-key pair for SME ${sme.url}...`,
+                );
+                this.logger.debug(`Connecting to SME ${sme.url}...`);
+                await this.endpoints.connect(
+                    sme,
+                    this.identity.signedPreKeys[0]!,
+                );
+                this.logger.debug(`Successfully connected to SME ${sme.url}`);
+            }),
+        );
+
+        this.logger.debug('Updating bot metadata...');
+        await this.updateMeta(NAB_META);
+
+        this.logger.debug('Getting and setting DID document...');
+        const didDoc = await this.getDIDDocument();
+        didDocManager.set(didDoc);
+        this.logger.debug(`DID document set for ${didDoc.id}`);
+
+        this.logger.debug('Printing join info...');
         await this.printJoinInfo(smes);
-        this.setupGraphVisualization();
+
+        this.started = true;
+        this.logger.debug('BotGraphVisualizer successfully started');
     }
 
     public async stop() {
-        await super.stop();
-        if (this.server) this.server.close();
-    }
+        this.logger.debug('Stopping BotGraphVisualizer...');
 
-    private setupGraphVisualization() {
-        const app = express();
-        app.get('/', (_, res: Response) => {
-            res.setHeader('Content-Type', 'text/html');
-            const graphStr = JSON.stringify(
-                (this.graph.json() as unknown as { elements: never[] })[
-                    'elements'
-                ],
-            );
-            res.send(`
-              <style>
-              div#cy {
-                width: 100%;
-                height: 100%;
-              }
-              </style>
-              <body>
-              <div id="cy">
-              </div>
-              <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.3/cytoscape.min.js"></script>
-              <script>
-                var cy = window.cy = cytoscape({
-                    container: document.getElementById('cy'),
-                    layout: {
-                        name: 'cose',
-                        idealEdgeLength: function (edge) {
-                            // Default is: 10
-                            // Instead, base it on "weight"
-                            return edge.data().weight * 2
-                        },
-                        edgeElasticity: function (edge) {
-                            // Default is: 100
-                            // Instead, base it on "weight"
-                            return edge.data().weight * 10
-                        },
-                        nodeOverlap: 20,
-                        refresh: 20,
-                        fit: true,
-                        padding: 30,
-                        randomize: false,
-                        componentSpacing: 100,
-                        nodeRepulsion: 400000,
-                        nestingFactor: 5,
-                        gravity: 80,
-                        numIter: 1000,
-                        initialTemp: 200,
-                        coolingFactor: 0.95,
-                        minTemp: 1.0
-                    },
-                    elements: ${graphStr},
-                    style: [
-                        {
-                            selector: 'node',
-                            style: {
-                                label: 'data(id)',
-                            },
-                        },
-                        {
-                            selector: 'edge',
-                            style: {
-                                'label': 'data(weight)',
-                                'width': 3,
-                                'line-color': '#ccc',
-                                'target-arrow-color': '#ccc',
-                                'target-arrow-shape': 'triangle',
-                                'curve-style': 'bezier'
-                            },
-                        }
-                    ],
-                });
-                </script>
-              </body>
-          `);
-        });
-        const port = 3030;
-        this.server = app.listen(port, () => {
-            console.log(`>>> open users graph at http://localhost:${port}`);
-        });
+        this.logger.debug('Calling parent stop method...');
+        await super.stop();
+
+        if (this.server) {
+            this.logger.debug('Closing HTTP server...');
+            this.server.close();
+        }
+
+        this.started = false;
+        this.closed = true;
+        this.logger.debug('BotGraphVisualizer successfully stopped');
     }
 }
 
 loadIdentityFromFile(HSM_CONFIG, process.env.NAB_ID_FILEPATH!).then(
     async (identity) => {
-        const bot = new BotGraphVisualizer(identity);
+        const bot = new BotGraphVisualizer(identity, 'NAB', 'DEBUG');
         process.on('unhandledRejection', (reason, promise) => {
             SmashMessaging.handleError(reason, promise, bot.getLogger());
         });

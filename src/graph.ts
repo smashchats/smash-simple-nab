@@ -1,7 +1,5 @@
 import cytoscape, { NodeSingular } from 'cytoscape';
-import { Logger } from 'smash-node-lib';
-
-import { UserID } from './bot.js';
+import { DIDString, Logger } from 'smash-node-lib';
 
 const DEFAULT_EDGE_WEIGHT = 20;
 const SMASH_EDGE_WEIGHT = 100;
@@ -14,14 +12,14 @@ export default class SocialGraph {
         this.graph = cytoscape();
     }
 
-    getOrCreate(id: UserID) {
+    getOrCreate(id: DIDString) {
         // retrieve if exist, else add to the graph
         const nodes = this.graph.getElementById(id);
         if (nodes.length > 0) return nodes[0] as NodeSingular;
         return this.addNode(id) as NodeSingular;
     }
 
-    connectDirected(a: UserID, b: UserID) {
+    connectDirected(a: DIDString, b: DIDString) {
         const edges = this.getDirectedEdges(a, b);
         if (edges.length >= 2)
             return this.logger.info(
@@ -33,26 +31,26 @@ export default class SocialGraph {
         this.logger.debug(`> nodes ${a} and ${b} connected`);
     }
 
-    disconnectDirected(a: UserID, b: UserID) {
+    disconnectDirected(a: DIDString, b: DIDString) {
         this.graph.remove(this.getDirectedEdges(a, b));
         this.computeScores();
         this.logger.debug(`> nodes ${a} and ${b} disconnected`);
     }
 
-    resetEdges(a: UserID, b: UserID) {
+    resetEdges(a: DIDString, b: DIDString) {
         this.graph.remove(this.getOrCreate(a).edgesTo(this.getOrCreate(b)));
         this.addDirectedEdge(a, b);
         this.computeScores();
         this.logger.debug(`> nodes ${a} and ${b} cleared`);
     }
 
-    private getDirectedEdges(a: UserID, b: UserID) {
+    private getDirectedEdges(a: DIDString, b: DIDString) {
         return this.getOrCreate(a).edgesTo(this.getOrCreate(b));
     }
 
     private addDirectedEdge(
-        a: UserID,
-        b: UserID,
+        a: DIDString,
+        b: DIDString,
         weight: number = DEFAULT_EDGE_WEIGHT,
     ) {
         this.graph.add({
@@ -62,8 +60,8 @@ export default class SocialGraph {
     }
 
     private static edgeData(
-        a: UserID,
-        b: UserID,
+        a: DIDString,
+        b: DIDString,
         weight: number = DEFAULT_EDGE_WEIGHT,
     ) {
         return {
@@ -73,16 +71,18 @@ export default class SocialGraph {
         };
     }
 
-    private addNode(id: UserID) {
+    private addNode(id: DIDString) {
         // all new nodes are fully connected to existing ones
         // both ways (directed graph!)
         const edges = this.graph
             .nodes()
-            .map((node) => SocialGraph.edgeData(id, node.id()))
+            .map((node) => SocialGraph.edgeData(id, node.id() as DIDString))
             .concat(
                 this.graph
                     .nodes()
-                    .map((node) => SocialGraph.edgeData(node.id(), id)),
+                    .map((node) =>
+                        SocialGraph.edgeData(node.id() as DIDString, id),
+                    ),
             );
         const node = this.graph.add({
             group: 'nodes',
@@ -100,7 +100,7 @@ export default class SocialGraph {
         return node;
     }
 
-    private scores: { id: UserID; score: number }[] = [];
+    private scores: { id: DIDString; score: number }[] = [];
     getScores() {
         if (this.scores.length === 0) this.computeScores();
         return this.scores;
@@ -113,7 +113,7 @@ export default class SocialGraph {
         this.scores = this.graph
             .nodes()
             .map((node) => ({
-                id: node.id(),
+                id: node.id() as DIDString,
                 score: pageRank.rank(node),
             }))
             .toSorted((a, b) => b.score - a.score);
