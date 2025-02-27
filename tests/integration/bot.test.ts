@@ -1,7 +1,7 @@
 import {
     DID,
     DIDDocManager,
-    MessagingEventMap,
+    Logger,
     NBH_PROFILE_LIST,
     SMASH_NBH_JOIN,
     SMEConfig,
@@ -14,19 +14,13 @@ import {
 
 import { Bot } from '../../src/bot.js';
 import { SME_PUBLIC_KEY, socketServerUrl } from '../jest.global.cjs';
-
-const waitFor = (peer: SmashMessaging, event: string) => {
-    return new Promise((resolve) =>
-        peer.once(event as keyof MessagingEventMap, (...args) =>
-            resolve(args[0]),
-        ),
-    );
-};
-
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+import { aliasWaitFor, delay } from './utils.js';
 
 describe('NAB integration testing', () => {
     let didDocManager: DIDDocManager;
+    const logger = new Logger('bot.test', 'DEBUG');
+    const waitForEventCancelFns: (() => void)[] = [];
+    const waitFor = aliasWaitFor(waitForEventCancelFns, logger);
 
     beforeAll(() => {
         SmashMessaging.setCrypto(global.crypto);
@@ -55,19 +49,19 @@ describe('NAB integration testing', () => {
         await bot.endpoints.connect(SME_CONFIG, preKeyPair);
         await bot.printJoinInfo([SME_CONFIG]);
         joinInfoWithSME = await bot.getJoinInfo([SME_CONFIG]);
-        await delay(50);
     }, 10000);
-
-    const userJoin = async (user: SmashUser) => {
-        const waitForBotJoinEvent = waitFor(bot!, SMASH_NBH_JOIN);
-        await user.join(joinInfoWithSME!);
-        await waitForBotJoinEvent;
-    };
 
     let user: SmashUser | undefined;
 
     afterEach(async () => {
-        await Promise.all([bot?.stop(), user?.close()]);
+        logger.debug('>> closing users and canceling all waiters');
+        await Promise.all([
+            bot?.stop(),
+            user?.close(),
+            ...waitForEventCancelFns.map((cancel) => cancel()),
+        ]);
+        waitForEventCancelFns.length = 0;
+        logger.debug('>> resetting mocks');
         jest.resetAllMocks();
         bot = undefined;
         joinInfoWithSME = undefined;
@@ -75,7 +69,9 @@ describe('NAB integration testing', () => {
 
     it('a new user can join the neighborhood', async () => {
         user = new SmashUser(await didDocManager.generate(), 'User', 'INFO');
-        await userJoin(user);
+        const waitForBotJoinEvent = waitFor(bot!, SMASH_NBH_JOIN);
+        await user.join(joinInfoWithSME!);
+        await waitForBotJoinEvent;
         await delay(500);
         expect(bot?.users.size).toBe(1);
     });
@@ -102,12 +98,18 @@ describe('NAB integration testing', () => {
                     .then((did) => new SmashUser(did, 'Darcy', 'DEBUG')),
             ]);
 
-            await Promise.all([
-                userJoin(alice),
-                userJoin(bob),
-                userJoin(charlie),
-                userJoin(darcy),
-            ]);
+            const allFourUsersJoined = waitFor(bot!, SMASH_NBH_JOIN, {
+                count: 4,
+                timeout: 12000,
+            });
+
+            await alice.join(joinInfoWithSME!);
+            await bob.join(joinInfoWithSME!);
+            await charlie.join(joinInfoWithSME!);
+            await darcy.join(joinInfoWithSME!);
+
+            await allFourUsersJoined;
+            await delay(500);
 
             const diddocs = await Promise.all([
                 alice.getDIDDocument(),
@@ -115,9 +117,8 @@ describe('NAB integration testing', () => {
                 charlie.getDIDDocument(),
                 darcy.getDIDDocument(),
             ]);
-            diddocs.forEach(didDocManager.set.bind(didDocManager));
 
-            await delay(1000);
+            diddocs.forEach(didDocManager.set.bind(didDocManager));
         }, 20000);
 
         afterEach(async () => {
@@ -145,7 +146,7 @@ describe('NAB integration testing', () => {
             ).then();
             await alice.discover();
             const profiles = await waitForDiscover;
-            console.log('profiles', JSON.stringify(profiles, null, 2));
+            logger.debug('profiles', JSON.stringify(profiles, null, 2));
             const didURL = (did: DID) =>
                 typeof did === 'string' ? did : did.id;
             const compareDID = (did1: DID, did2: DID) =>
@@ -168,8 +169,9 @@ describe('NAB integration testing', () => {
             };
 
             beforeEach(async () => {
+                await delay(100);
                 initialScores = await getAliceGrid();
-                await delay(1000);
+                await delay(100);
             }, 10000);
 
             it('can discover each others through the NAB', () => {
