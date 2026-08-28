@@ -20,8 +20,19 @@ jobs:
               with:
                   node-version: '22.x'
 
+            # package.json declares smash-node-lib as a local path, so its own
+            # dependency tree lands in this repository's package-lock.json.
+            # A floating clone of main therefore breaks `npm ci` every time
+            # smash-node-lib changes a dependency. That is what made all ten
+            # Renovate pull requests red. The pin holds the two in step.
+            # To move it: check out the new commit here, run `npm install`,
+            # and commit package-lock.json in the same change.
             - name: Clone smash-node-lib dependency
-              run: git clone --depth 1 https://github.com/smashchats/smash-node-lib.git
+              env:
+                  SMASH_NODE_LIB_REF: 7ab2a4a5a0719dabb47b3ebbee28034b1b189b48
+              run: |
+                  git clone https://github.com/smashchats/smash-node-lib.git
+                  git -C smash-node-lib checkout "$SMASH_NODE_LIB_REF"
 
             - name: Install Lib Dependencies
               run: cd smash-node-lib && npm ci && cd ..
